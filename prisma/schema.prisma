@@ -1,0 +1,65 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           String         @id @default(uuid())
+  studentId    String         @unique
+  name         String
+  department   String
+  phone        String
+  referralCode String?
+  points       Int            @default(0)
+  joinedAt     DateTime       @default(now())
+  isAdmin      Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  
+  pointHistory PointHistory[]
+  
+  @@index([studentId])
+  @@map("users")
+}
+
+model Event {
+  id            String   @id @default(uuid())
+  title         String
+  location      String
+  date          DateTime
+  endDate       DateTime?
+  content       String   @db.Text
+  imageUrl      String?
+  instagramUrl  String?
+  points        Int
+  postDate      DateTime
+  postEndDate   DateTime
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([isActive, postDate])
+  @@map("events")
+}
+
+model PointHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  points    Int
+  reason    String
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, date])
+  @@map("point_history")
+}
