@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useNavigate } from '@/lib/navigation';
 import { motion } from 'motion/react';
 import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
@@ -11,8 +12,13 @@ export default function MyPage() {
   const navigate = useNavigate();
   const { currentUser, users, pointHistory, getGrade, getGradeInfo } = useApp();
 
+  useEffect(() => {
+    if (!currentUser) {
+      navigate('/login', { replace: true });
+    }
+  }, [currentUser, navigate]);
+
   if (!currentUser) {
-    navigate('/login', { replace: true });
     return null;
   }
 

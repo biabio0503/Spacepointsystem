@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from '@/lib/navigation';
 import { motion } from 'motion/react';
 import { Bell, Settings, ChevronRight, Instagram, QrCode, Gift, Star, TrendingUp } from 'lucide-react';
@@ -19,8 +19,13 @@ export default function HomePage() {
   const { currentUser, events, users, getGrade, getGradeInfo, addPoints, pointHistory } = useApp();
   const [pointClicked, setPointClicked] = useState(false);
 
+  useEffect(() => {
+    if (!currentUser) {
+      navigate('/login', { replace: true });
+    }
+  }, [currentUser, navigate]);
+
   if (!currentUser) {
-    navigate('/login', { replace: true });
     return null;
   }
 

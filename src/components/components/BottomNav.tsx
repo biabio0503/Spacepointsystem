@@ -1,12 +1,13 @@
 'use client';
 
 import { useNavigate, useLocation } from '@/lib/navigation';
-import { Home, QrCode, User, Calendar } from 'lucide-react';
+import { Home, QrCode, User, Calendar, Package } from 'lucide-react';
 
 const navItems = [
   { path: '/home', icon: Home, label: '홈' },
   { path: '/events', icon: Calendar, label: '사업' },
   { path: '/qr', icon: QrCode, label: 'QR' },
+  { path: '/rental', icon: Package, label: '대여' },
   { path: '/mypage', icon: User, label: '마이' },
 ];
 

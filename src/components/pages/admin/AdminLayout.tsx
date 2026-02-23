@@ -1,7 +1,7 @@
 'use client';
 
 import { useNavigate, useLocation, Outlet } from '@/lib/navigation';
-import { LayoutDashboard, Calendar, Users, LogOut } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, LogOut, Package, ClipboardList } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 const logoImg = '/logo.svg';
@@ -9,6 +9,8 @@ const logoImg = '/logo.svg';
 const navItems = [
   { path: '/admin', icon: LayoutDashboard, label: '홈' },
   { path: '/admin/events', icon: Calendar, label: '사업관리' },
+  { path: '/admin/rental-items', icon: Package, label: '대여품목' },
+  { path: '/admin/rentals', icon: ClipboardList, label: '대여현황' },
   { path: '/admin/members', icon: Users, label: '가입자' },
 ];
 

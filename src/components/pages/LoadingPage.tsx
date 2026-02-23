@@ -5,7 +5,7 @@ import { useNavigate } from '@/lib/navigation';
 import { motion } from 'motion/react';
 import { useApp } from '../context/AppContext';
 
-const logoImg = '/logo.svg';
+const logoImg = '/logo.png';
 
 export default function LoadingPage() {
   const navigate = useNavigate();

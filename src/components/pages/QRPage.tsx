@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from '@/lib/navigation';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, RefreshCw, CheckCircle } from 'lucide-react';
@@ -16,8 +16,13 @@ export default function QRPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [qrKey, setQrKey] = useState(Date.now());
 
+  useEffect(() => {
+    if (!currentUser) {
+      navigate('/login', { replace: true });
+    }
+  }, [currentUser, navigate]);
+
   if (!currentUser) {
-    navigate('/login', { replace: true });
     return null;
   }
 
