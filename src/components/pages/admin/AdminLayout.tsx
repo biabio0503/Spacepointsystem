@@ -1,7 +1,10 @@
-import { useNavigate, useLocation, Outlet } from 'react-router';
+'use client';
+
+import { useNavigate, useLocation, Outlet } from '@/lib/navigation';
 import { LayoutDashboard, Calendar, Users, LogOut } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import logoImg from 'figma:asset/136401b51254a617796e7d6a469447d27b3a1a71.png';
+
+const logoImg = '/logo.svg';
 
 const navItems = [
   { path: '/admin', icon: LayoutDashboard, label: '홈' },
@@ -9,7 +12,7 @@ const navItems = [
   { path: '/admin/members', icon: Users, label: '가입자' },
 ];
 
-export default function AdminLayout() {
+export default function AdminLayout({ children }: { children?: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useApp();
@@ -45,7 +48,7 @@ export default function AdminLayout() {
 
       {/* Content */}
       <div className="flex-1 pb-20">
-        <Outlet />
+        {children}
       </div>
 
       {/* Bottom nav */}

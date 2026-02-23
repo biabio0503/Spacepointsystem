@@ -1,5 +1,7 @@
+'use client';
+
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from '@/lib/navigation';
 import { motion } from 'motion/react';
 import { ChevronLeft, MapPin, Calendar, ExternalLink } from 'lucide-react';
 import { useApp } from '../context/AppContext';

@@ -1,3 +1,5 @@
+'use client';
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 export type Grade = '별' | '행성' | '로켓' | 'UFO';

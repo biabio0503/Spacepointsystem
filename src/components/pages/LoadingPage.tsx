@@ -1,8 +1,11 @@
+'use client';
+
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from '@/lib/navigation';
 import { motion } from 'motion/react';
 import { useApp } from '../context/AppContext';
-import logoImg from 'figma:asset/136401b51254a617796e7d6a469447d27b3a1a71.png';
+
+const logoImg = '/logo.svg';
 
 export default function LoadingPage() {
   const navigate = useNavigate();
@@ -54,8 +57,8 @@ export default function LoadingPage() {
               background: i === 0
                 ? 'radial-gradient(circle, rgba(75,163,227,0.08) 0%, transparent 70%)'
                 : i === 1
-                ? 'radial-gradient(circle, rgba(125,196,67,0.06) 0%, transparent 70%)'
-                : 'radial-gradient(circle, rgba(245,197,24,0.05) 0%, transparent 70%)',
+                  ? 'radial-gradient(circle, rgba(125,196,67,0.06) 0%, transparent 70%)'
+                  : 'radial-gradient(circle, rgba(245,197,24,0.05) 0%, transparent 70%)',
             }}
             animate={{ scale: [1, 1.1, 1], opacity: [0.5, 1, 0.5] }}
             transition={{ duration: 4 + i, repeat: Infinity, ease: 'easeInOut' }}

@@ -1,8 +1,11 @@
+'use client';
+
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from '@/lib/navigation';
 import { motion } from 'motion/react';
 import { useApp } from '../context/AppContext';
-import logoImg from 'figma:asset/136401b51254a617796e7d6a469447d27b3a1a71.png';
+
+const logoImg = '/logo.png';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -32,7 +35,7 @@ export default function LoginPage() {
     if (user) {
       navigate('/home', { replace: true });
     } else {
-      navigate('/signup', { state: { studentId }, replace: false });
+      navigate(`/signup?studentId=${encodeURIComponent(studentId)}`, { replace: false });
     }
   };
 

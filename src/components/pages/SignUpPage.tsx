@@ -1,15 +1,18 @@
-import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router';
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from '@/lib/navigation';
 import { motion } from 'motion/react';
 import { ChevronDown, ChevronLeft } from 'lucide-react';
 import { useApp, DEPARTMENTS } from '../context/AppContext';
+import { useSearchParams } from 'next/navigation';
 
 export default function SignUpPage() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const searchParams = useSearchParams();
   const { register } = useApp();
 
-  const prefillStudentId = (location.state as any)?.studentId || '';
+  const prefillStudentId = searchParams.get('studentId') || '';
 
   const [form, setForm] = useState({
     name: '',

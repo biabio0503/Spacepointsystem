@@ -1,4 +1,6 @@
-import { useNavigate, useLocation } from 'react-router';
+'use client';
+
+import { useNavigate, useLocation } from '@/lib/navigation';
 import { Home, QrCode, User, Calendar } from 'lucide-react';
 
 const navItems = [

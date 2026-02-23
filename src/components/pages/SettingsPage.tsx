@@ -1,11 +1,15 @@
+'use client';
+
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from '@/lib/navigation';
+import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { ChevronLeft, LogOut, AlertCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const router = useRouter();
   const { currentUser, updateUser, logout } = useApp();
   const [form, setForm] = useState({
     name: currentUser?.name ?? '',
@@ -50,7 +54,7 @@ export default function SettingsPage() {
         style={{ background: 'linear-gradient(135deg, #0D1B3E, #1B2A5C)' }}
       >
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)}>
+          <button onClick={() => router.back()}>
             <ChevronLeft size={24} color="white" />
           </button>
           <h1 className="text-white" style={{ fontSize: 20, fontWeight: 800 }}>계정 관리</h1>

@@ -1,5 +1,7 @@
+'use client';
+
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from '@/lib/navigation';
 import { motion } from 'motion/react';
 import { Plus, Edit, Trash2, Calendar, MapPin, Star } from 'lucide-react';
 import { useApp, Event } from '../../context/AppContext';

@@ -1,5 +1,7 @@
+'use client';
+
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from '@/lib/navigation';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, RefreshCw, CheckCircle } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';

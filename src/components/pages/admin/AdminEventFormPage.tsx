@@ -1,11 +1,14 @@
+'use client';
+
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams } from '@/lib/navigation';
 import { ChevronLeft, Image } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export default function AdminEventFormPage() {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const params = useParams();
+  const id = typeof params.id === 'string' ? params.id : undefined;
   const { events, addEvent, updateEvent } = useApp();
   const isEdit = !!id;
   const existingEvent = isEdit ? events.find(e => e.id === id) : null;

@@ -1,4 +1,6 @@
-import { useNavigate } from 'react-router';
+'use client';
+
+import { useNavigate } from '@/lib/navigation';
 import { motion } from 'motion/react';
 import { ChevronRight } from 'lucide-react';
 import { useApp } from '../../context/AppContext';

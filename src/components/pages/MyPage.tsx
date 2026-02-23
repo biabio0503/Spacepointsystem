@@ -1,4 +1,6 @@
-import { useNavigate } from 'react-router';
+'use client';
+
+import { useNavigate } from '@/lib/navigation';
 import { motion } from 'motion/react';
 import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -130,7 +132,7 @@ export default function MyPage() {
       <div className="px-5 mt-4">
         <div className="bg-white rounded-2xl p-5 shadow-sm">
           <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1F2937', marginBottom: 16 }}>등급 현황</h3>
-          
+
           {/* Grade steps */}
           <div className="flex items-center justify-between mb-4">
             {(['별', '행성', '로켓', 'UFO'] as const).map((g, i, arr) => {
@@ -197,7 +199,7 @@ export default function MyPage() {
       {/* Point History */}
       <div className="px-5 mt-4">
         <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1F2937', marginBottom: 12 }}>포인트 내역</h3>
-        
+
         {userHistory.length === 0 ? (
           <div className="bg-white rounded-2xl p-8 shadow-sm text-center">
             <p style={{ fontSize: 32 }}>⭐</p>
