@@ -13,13 +13,16 @@ export default function SignUpPage() {
   const { register } = useApp();
 
   const prefillStudentId = searchParams.get('studentId') || '';
+  const kakaoId = searchParams.get('kakao_id') || '';
+  const kakaoName = searchParams.get('kakao_name') || '';
 
   const [form, setForm] = useState({
-    name: '',
+    name: kakaoName,
     studentId: prefillStudentId,
     department: '',
     phone: '',
     referralCode: '',
+    kakaoId: kakaoId,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showDeptDropdown, setShowDeptDropdown] = useState(false);
@@ -38,17 +41,61 @@ export default function SignUpPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
-    const user = register({
-      studentId: form.studentId,
-      name: form.name,
-      department: form.department,
-      phone: form.phone,
-      referralCode: form.referralCode || undefined,
-    });
-    setNewUser(user);
-    setStep('welcome');
+
+    try {
+      // 실제 API 호출
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          studentId: form.studentId,
+          name: form.name,
+          department: form.department,
+          phone: form.phone,
+          password: form.kakaoId || form.studentId, // 카카오 로그인이면 학번을 비밀번호로 사용
+          referralCode: form.referralCode || undefined,
+          kakaoId: form.kakaoId || undefined,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setErrors({ studentId: data.error || '회원가입 중 오류가 발생했습니다.' });
+        return;
+      }
+
+      // 회원가입 성공 시 로그인 처리
+      if (form.kakaoId) {
+        // 카카오 로그인의 경우 자동 로그인
+        const loginResponse = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            studentId: form.studentId,
+            password: form.studentId,
+          }),
+        });
+
+        if (loginResponse.ok) {
+          setNewUser(data.user);
+          setStep('welcome');
+        }
+      } else {
+        // 일반 회원가입의 경우
+        setNewUser(data.user);
+        setStep('welcome');
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+      setErrors({ studentId: '회원가입 중 오류가 발생했습니다.' });
+    }
   };
 
   if (step === 'welcome') {

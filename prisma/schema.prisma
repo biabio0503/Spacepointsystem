@@ -1,13 +1,10 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -23,30 +20,32 @@ model User {
   isAdmin      Boolean        @default(false)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
-  
+  kakaoId      String?        @unique
+  role         String         @default("USER")
   pointHistory PointHistory[]
   rentals      Rental[]
-  
+
   @@index([studentId])
+  @@index([kakaoId])
   @@map("users")
 }
 
 model Event {
-  id            String   @id @default(uuid())
-  title         String
-  location      String
-  date          DateTime
-  endDate       DateTime?
-  content       String   @db.Text
-  imageUrl      String?
-  instagramUrl  String?
-  points        Int
-  postDate      DateTime
-  postEndDate   DateTime
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
+  id           String    @id @default(uuid())
+  title        String
+  location     String
+  date         DateTime
+  endDate      DateTime?
+  content      String
+  imageUrl     String?
+  instagramUrl String?
+  points       Int
+  postDate     DateTime
+  postEndDate  DateTime
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
   @@index([isActive, postDate])
   @@map("events")
 }
@@ -58,9 +57,8 @@ model PointHistory {
   reason    String
   date      DateTime @default(now())
   createdAt DateTime @default(now())
-  
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@index([userId, date])
   @@map("point_history")
 }
@@ -73,33 +71,31 @@ model RentalItem {
   available   Int
   imageUrl    String?
   emoji       String?
-  description String?  @db.Text
+  description String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
   rentals     Rental[]
-  
+
   @@index([isActive, category])
   @@map("rental_items")
 }
 
 model Rental {
-  id           String   @id @default(uuid())
-  userId       String
-  itemId       String
-  quantity     Int      @default(1)
-  rentalDate   DateTime
-  returnDate   DateTime?
+  id                 String     @id @default(uuid())
+  userId             String
+  itemId             String
+  quantity           Int        @default(1)
+  rentalDate         DateTime
+  returnDate         DateTime?
   expectedReturnDate DateTime
-  status       String   @default("active") // active, returned, overdue
-  notes        String?  @db.Text
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  item         RentalItem  @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  
+  status             String     @default("active")
+  notes              String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  item               RentalItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user               User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId, status])
   @@index([itemId, status])
   @@index([rentalDate])
