@@ -18,9 +18,11 @@ model User {
   department   String
   phone        String
   referralCode String?
+  kakaoId      String?        @unique
   points       Int            @default(0)
   joinedAt     DateTime       @default(now())
   isAdmin      Boolean        @default(false)
+  role         String         @default("USER") // USER, ADMIN
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   
@@ -28,6 +30,7 @@ model User {
   rentals      Rental[]
   
   @@index([studentId])
+  @@index([kakaoId])
   @@map("users")
 }
 

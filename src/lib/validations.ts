@@ -6,8 +6,9 @@ export const signUpSchema = z.object({
    name: z.string().min(1, '이름을 입력해주세요').max(50, '이름은 50자 이내로 입력해주세요'),
    department: z.string().min(1, '학과를 입력해주세요').max(100, '학과는 100자 이내로 입력해주세요'),
    phone: z.string().min(10, '올바른 전화번호를 입력해주세요').max(15, '올바른 전화번호를 입력해주세요'),
-   password: z.string().min(6, '비밀번호는 최소 6자 이상이어야 합니다').max(100, '비밀번호는 100자 이내로 입력해주세요'),
+   password: z.string().min(6, '비밀번호는 최소 6자 이상이어야 합니다').max(100, '비밀번호는 100자 이내로 입력해주세요').optional(),
    referralCode: z.string().optional(),
+   kakaoId: z.string().optional(),
 });
 
 export const loginSchema = z.object({

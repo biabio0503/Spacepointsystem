@@ -28,7 +28,26 @@ DIRECT_URL=postgresql://postgres:[YOUR-PASSWORD]@[HOST]:5432/postgres
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-## 4. Prisma 설정
+## 4. 카카오 로그인 설정 (선택사항)
+
+카카오 로그인을 사용하려면 다음 단계를 따르세요:
+
+1. [Kakao Developers](https://developers.kakao.com)에 접속하여 로그인
+2. 내 애플리케이션 > 애플리케이션 추가하기
+3. 앱 설정 > 플랫폼 > Web 플랫폼 등록
+   - 사이트 도메인: `http://localhost:3000`
+4. 제품 설정 > 카카오 로그인 활성화
+5. Redirect URI 등록: `http://localhost:3000/api/auth/kakao/callback`
+6. 앱 키 복사: REST API 키를 복사하여 `.env.local`에 추가
+
+`.env.local` 파일에 카카오 설정 추가:
+
+```env
+NEXT_PUBLIC_KAKAO_REST_API_KEY=your-kakao-rest-api-key
+NEXT_PUBLIC_KAKAO_REDIRECT_URI=http://localhost:3000/api/auth/kakao/callback
+```
+
+## 5. Prisma 설정
 
 ```bash
 # Prisma 클라이언트 생성
@@ -38,7 +57,7 @@ npx prisma generate
 npx prisma db push
 ```
 
-## 5. 개발 서버 실행
+## 6. 개발 서버 실행
 
 ```bash
 npm run dev
@@ -51,6 +70,7 @@ npm run dev
 - 기존 Vite 관련 파일들(`index.html`, `src/main.tsx`, `vite.config.ts`)은 참조용으로 남겨두었습니다.
 - Next.js는 `app/` 디렉토리를 사용하며, 기존 컴포넌트들은 `src/components/`로 이동되었습니다.
 - 모든 페이지는 Next.js App Router를 사용합니다.
+- 카카오 로그인은 선택사항이며, 설정하지 않아도 학번 로그인으로 정상 작동합니다.
 
 ## 선택사항: Prisma Studio 실행
 

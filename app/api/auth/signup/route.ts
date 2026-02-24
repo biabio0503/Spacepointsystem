@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
 
       // Zod 유효성 검사
       const validatedData = signUpSchema.parse(body);
-      const { studentId, name, department, phone, password, referralCode } = validatedData;
+      const { studentId, name, department, phone, password, referralCode, kakaoId } = validatedData;
 
       // 학번 중복 체크
       const existingUser = await prisma.user.findUnique({
@@ -28,12 +28,13 @@ export async function POST(request: NextRequest) {
       const supabase = await createClient();
       const { data: authData, error: authError } = await supabase.auth.signUp({
          email: `${studentId}@student.local`, // 학번을 이메일 형식으로 변환
-         password,
+         password: password || studentId, // 카카오 로그인의 경우 학번을 비밀번호로 사용
          options: {
             data: {
                student_id: studentId,
                name,
                department,
+               kakao_id: kakaoId,
             },
          },
       });
@@ -81,6 +82,7 @@ export async function POST(request: NextRequest) {
             department,
             phone,
             referralCode: referralCode || null,
+            kakaoId: kakaoId || null,
             points: initialPoints,
          },
       });
