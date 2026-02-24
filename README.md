@@ -1,4 +1,4 @@
-# Buddy Point System
+# Buddy Point System (SPACE)
 
 This is a code bundle for Buddy Point System. The original project is available at https://www.figma.com/design/pyYKJa93e6sHizoDlNTT7Z/Buddy-Point-System.
 
