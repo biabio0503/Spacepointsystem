@@ -4,13 +4,15 @@ import { useState } from 'react';
 import { useNavigate } from '@/lib/navigation';
 import { motion } from 'motion/react';
 import { useApp } from '../context/AppContext';
+import { authService } from '@/lib/auth';
 
 const logoImg = '/logo.png';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { login } = useApp();
+  const { login: demoLogin } = useApp(); // Demo login for development
   const [studentId, setStudentId] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showStudentIdInput, setShowStudentIdInput] = useState(false);
@@ -20,25 +22,42 @@ export default function LoginPage() {
     window.location.href = kakaoAuthUrl;
   };
 
-  const handleStudentLogin = () => {
+  const handleStudentLogin = async () => {
     if (!studentId.trim()) {
       setError('학번을 입력해주세요.');
       return;
     }
-    if (studentId === 'admin') {
-      const user = login('admin');
-      if (user) { navigate('/admin', { replace: true }); return; }
+    if (!password.trim()) {
+      setError('비밀번호를 입력해주세요.');
+      return;
     }
-    const user = login(studentId);
-    if (user) {
-      navigate('/home', { replace: true });
-    } else {
-      navigate(`/signup?studentId=${encodeURIComponent(studentId)}`, { replace: false });
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const { user, error: loginError } = await authService.login(studentId, password);
+
+      if (loginError || !user) {
+        setError(loginError || '로그인에 실패했습니다.');
+        setIsLoading(false);
+        return;
+      }
+
+      // 로그인 성공
+      if (user.isAdmin) {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/home', { replace: true });
+      }
+    } catch (err) {
+      setError('로그인 중 오류가 발생했습니다.');
+      setIsLoading(false);
     }
   };
 
   const handleDemo = (id: string) => {
-    login(id);
+    demoLogin(id);
     navigate(id === 'admin' ? '/admin' : '/home', { replace: true });
   };
 
@@ -149,16 +168,41 @@ export default function LoginPage() {
                     fontSize: 15,
                     background: '#F9F9F9',
                   }}
+                />
+              </div>
+              <div>
+                <label className="block mb-1.5" style={{ fontSize: 13, color: '#666', fontWeight: 500 }}>
+                  비밀번호
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={e => { setPassword(e.target.value); setError(''); }}
+                  placeholder="비밀번호를 입력하세요"
+                  className="w-full px-4 py-3 rounded-xl border outline-none transition-colors"
+                  style={{
+                    borderColor: error ? '#EF4444' : '#E5E7EB',
+                    fontSize: 15,
+                    background: '#F9F9F9',
+                  }}
                   onKeyDown={e => e.key === 'Enter' && handleStudentLogin()}
                 />
                 {error && <p className="mt-1" style={{ fontSize: 12, color: '#EF4444' }}>{error}</p>}
               </div>
               <button
                 onClick={handleStudentLogin}
+                disabled={isLoading}
                 className="w-full py-3.5 rounded-xl text-white transition-opacity active:opacity-80"
                 style={{ background: 'linear-gradient(135deg, #1B2A5C, #2E4A9A)', fontWeight: 700, fontSize: 15 }}
               >
-                로그인 / 회원가입
+                {isLoading ? '로그인 중...' : '로그인'}
+              </button>
+              <button
+                onClick={() => navigate('/signup')}
+                className="w-full py-2 text-center transition-colors"
+                style={{ fontSize: 13, color: '#1B2A5C' }}
+              >
+                계정이 없으신가요? <span style={{ fontWeight: 600 }}>회원가입</span>
               </button>
               <button
                 onClick={() => setShowStudentIdInput(false)}
