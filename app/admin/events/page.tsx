@@ -2,4 +2,4 @@
 
 export const dynamic = 'force-dynamic';
 
-export { default } from '@/components/pages/admin/AdminEventsPage';
+export { default } from '../_components/AdminEventsPage';

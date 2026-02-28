@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
 
       // Zod 유효성 검사
       const validatedData = signUpSchema.parse(body);
-      const { studentId, name, department, phone, password, referralCode, kakaoId } = validatedData;
+      const { studentId, name, department, phone, password, referralCode } = validatedData;
 
       // 학번 중복 체크
       const existingUser = await prisma.user.findUnique({
@@ -26,15 +26,15 @@ export async function POST(request: NextRequest) {
 
       // Supabase Auth에 사용자 생성
       const supabase = await createClient();
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
-         email: `${studentId}@student.local`, // 학번을 이메일 형식으로 변환
-         password: password || studentId, // 카카오 로그인의 경우 학번을 비밀번호로 사용
+         email: `${studentId}@student.local`,
+         password: password,
          options: {
             data: {
                student_id: studentId,
                name,
                department,
-               kakao_id: kakaoId,
             },
          },
       });
@@ -43,6 +43,13 @@ export async function POST(request: NextRequest) {
          return NextResponse.json(
             { error: authError.message },
             { status: 400 }
+         );
+      }
+
+      if (!authData.user) {
+         return NextResponse.json(
+            { error: '사용자 생성에 실패했습니다.' },
+            { status: 500 }
          );
       }
 
@@ -76,13 +83,12 @@ export async function POST(request: NextRequest) {
       // Prisma DB에 사용자 정보 저장
       const user = await prisma.user.create({
          data: {
-            id: authData.user!.id,
+            id: authData.user.id,
             studentId,
             name,
             department,
             phone,
             referralCode: referralCode || null,
-            kakaoId: kakaoId || null,
             points: initialPoints,
          },
       });

@@ -1,6 +1,6 @@
 'use client';
 
-import AdminRentalsPage from '@/components/pages/admin/AdminRentalsPage';
+import AdminRentalsPage from '../_components/AdminRentalsPage';
 
 export const dynamic = 'force-dynamic';
 

@@ -137,3 +137,92 @@ export async function PATCH(
       );
    }
 }
+
+// DELETE /api/users/[id] - 사용자 삭제 (관리자만)
+export async function DELETE(
+   request: NextRequest,
+   { params }: { params: Promise<{ id: string }> }
+) {
+   try {
+      const { id } = await params;
+      const supabase = await createClient();
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+
+      if (authError || !authUser) {
+         return NextResponse.json(
+            { error: '인증되지 않은 사용자입니다.' },
+            { status: 401 }
+         );
+      }
+
+      // 관리자 권한 확인
+      const admin = await prisma.user.findUnique({
+         where: { id: authUser.id },
+      });
+
+      if (!admin?.isAdmin) {
+         return NextResponse.json(
+            { error: '관리자만 사용자를 삭제할 수 있습니다.' },
+            { status: 403 }
+         );
+      }
+
+      // 자기 자신은 삭제 불가
+      if (authUser.id === id) {
+         return NextResponse.json(
+            { error: '자기 자신은 삭제할 수 없습니다.' },
+            { status: 400 }
+         );
+      }
+
+      const userToDelete = await prisma.user.findUnique({
+         where: { id },
+      });
+
+      if (!userToDelete) {
+         return NextResponse.json(
+            { error: '사용자를 찾을 수 없습니다.' },
+            { status: 404 }
+         );
+      }
+
+      // 트랜잭션으로 관련 데이터 모두 삭제
+      await prisma.$transaction(async (tx) => {
+         // 포인트 히스토리 삭제
+         await tx.pointHistory.deleteMany({
+            where: { userId: id },
+         });
+
+         // 대여 내역 삭제
+         await tx.rental.deleteMany({
+            where: { userId: id },
+         });
+
+         // 사용자 삭제
+         await tx.user.delete({
+            where: { id },
+         });
+      });
+
+      // Supabase Auth에서도 사용자 삭제 (관리자 권한 필요)
+      try {
+         const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(id);
+         if (deleteAuthError) {
+            console.error('Supabase auth delete error:', deleteAuthError);
+         }
+      } catch (authDeleteError) {
+         console.error('Failed to delete from auth:', authDeleteError);
+         // Auth 삭제가 실패해도 계속 진행 (DB에서는 이미 삭제됨)
+      }
+
+      return NextResponse.json({
+         message: '사용자가 삭제되었습니다.',
+      });
+   } catch (error) {
+      console.error('Delete user error:', error);
+      return NextResponse.json(
+         { error: '사용자 삭제 중 오류가 발생했습니다.' },
+         { status: 500 }
+      );
+   }
+}

@@ -50,7 +50,6 @@ export const eventsAPI = {
       fetchAPI<{ event: any }>(`/events/${id}`, {
          method: 'PUT',
          body: JSON.stringify(eventData),
-
       }),
 
    delete: (id: string) =>
