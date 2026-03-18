@@ -2,6 +2,7 @@
 
 import { useRouter, usePathname } from 'next/navigation';
 import { Home, QrCode, User, Calendar, Package } from 'lucide-react';
+import { useStore } from '@/store/useStore';
 
 const navItems = [
   { path: '/home', icon: Home, label: '홈' },
@@ -14,6 +15,9 @@ const navItems = [
 export function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
+  const { settings } = useStore();
+
+  const primaryColor = settings?.primaryColor || '#1B2A5C';
 
   return (
     <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-100 z-50 pb-safe">
@@ -30,7 +34,7 @@ export function BottomNav() {
               >
                 <div
                   className="w-14 h-14 rounded-full flex items-center justify-center shadow-lg"
-                  style={{ background: 'linear-gradient(135deg, #1B2A5C, #2E4A9A)' }}
+                  style={{ background: `linear-gradient(135deg, ${primaryColor}, #2E4A9A)` }}
                 >
                   <Icon size={24} color="white" />
                 </div>
@@ -45,12 +49,12 @@ export function BottomNav() {
             >
               <Icon
                 size={22}
-                color={isActive ? '#1B2A5C' : '#9CA3AF'}
+                color={isActive ? primaryColor : '#9CA3AF'}
                 strokeWidth={isActive ? 2.5 : 1.8}
               />
               <span
                 className="text-[10px]"
-                style={{ color: isActive ? '#1B2A5C' : '#9CA3AF', fontWeight: isActive ? 600 : 400 }}
+                style={{ color: isActive ? primaryColor : '#9CA3AF', fontWeight: isActive ? 600 : 400 }}
               >
                 {label}
               </span>

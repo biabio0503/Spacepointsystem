@@ -1,16 +1,37 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { GradeBadge, GradeIcon } from '@/app/_components/shared/GradeBadge';
 import { BottomNav } from '@/app/_components/shared/BottomNav';
+import { meAPI } from '@/lib/api-client';
+import type { Grade } from '@/store/useStore';
+
+interface GradeData {
+  grade: Grade;
+  rank: number | null;
+  totalEligible: number;
+  topPercent: number | null;
+  nextGrade: { next: string; need: number } | null;
+  points: number;
+}
+
+interface PointHistory {
+  id: string;
+  userId: string;
+  points: number;
+  reason: string;
+  date: string;
+}
 
 export default function MyPage() {
   const router = useRouter();
-  const { currentUser, users, pointHistory, getGrade, getGradeInfo } = useStore();
+  const { currentUser, getGradeInfo } = useStore();
+  const [gradeData, setGradeData] = useState<GradeData | null>(null);
+  const [pointHistory, setPointHistory] = useState<PointHistory[]>([]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -18,39 +39,33 @@ export default function MyPage() {
     }
   }, [currentUser, router]);
 
-  if (!currentUser) {
+  // 등급 정보 로드
+  useEffect(() => {
+    if (currentUser) {
+      meAPI.getGrade()
+        .then(setGradeData)
+        .catch(err => console.error('Failed to load grade:', err));
+
+      // 포인트 내역 로드
+      meAPI.getPointHistory()
+        .then(data => setPointHistory(data.pointHistory))
+        .catch(err => console.error('Failed to load point history:', err));
+    }
+  }, [currentUser]);
+
+  if (!currentUser || !gradeData) {
     return null;
   }
 
-  const grade = getGrade(currentUser.id);
-  const gradeInfo = getGradeInfo(grade);
-  const userHistory = (pointHistory || [])
-    .filter(h => h.userId === currentUser.id)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const gradeInfo = getGradeInfo(gradeData.grade);
+
+  // pointHistory는 이미 현재 사용자 것만 로드됨
+  const userHistory = pointHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   // Ranking
-  const eligibleUsers = (users || []).filter(u => u.points >= 10 && !u.isAdmin);
-  const sorted = [...eligibleUsers].sort((a, b) => b.points - a.points);
-  const myRank = sorted.findIndex(u => u.id === currentUser.id);
-  const rankDisplay = myRank === -1 ? '-' : `${myRank + 1}위`;
-  const totalDisplay = eligibleUsers.length;
-  const topPercent = myRank === -1 ? '-' : `상위 ${Math.round(((myRank + 1) / totalDisplay) * 100)}%`;
-
-  // Next grade
-  const getNextGrade = () => {
-    if (grade === '별') return { next: '행성', need: 10 - currentUser.points };
-    if (grade === 'UFO') return null;
-    if (grade === '로켓') {
-      const top20idx = Math.floor(totalDisplay * 0.2);
-      const topPoints = sorted[top20idx]?.points ?? 0;
-      return { next: 'UFO', need: Math.max(0, topPoints - currentUser.points + 1) };
-    }
-    const top60idx = Math.floor(totalDisplay * 0.6);
-    const targetPoints = sorted[Math.max(0, top60idx - 1)]?.points ?? currentUser.points;
-    return { next: '로켓', need: Math.max(0, targetPoints - currentUser.points + 1) };
-  };
-
-  const nextGrade = getNextGrade();
+  const rankDisplay = gradeData.rank !== null ? `${gradeData.rank}위` : '-';
+  const totalDisplay = gradeData.totalEligible;
+  const topPercent = gradeData.topPercent !== null ? `상위 ${gradeData.topPercent}%` : '-';
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
@@ -102,12 +117,12 @@ export default function MyPage() {
             className="w-16 h-16 rounded-2xl flex items-center justify-center"
             style={{ background: 'rgba(255,255,255,0.1)' }}
           >
-            <GradeIcon grade={grade} size={48} />
+            <GradeIcon grade={gradeData.grade} size={48} />
           </div>
           <div>
             <div className="flex items-center gap-2 mb-1">
               <h2 className="text-white" style={{ fontSize: 20, fontWeight: 800 }}>{currentUser.name}</h2>
-              <GradeBadge grade={grade} size="sm" />
+              <GradeBadge grade={gradeData.grade} size="sm" />
             </div>
             <p className="text-white/70" style={{ fontSize: 13 }}>
               {currentUser.department} · {currentUser.studentId}
@@ -143,8 +158,8 @@ export default function MyPage() {
           <div className="flex items-center justify-between mb-4">
             {(['별', '행성', '로켓', 'UFO'] as const).map((g, i, arr) => {
               const info = getGradeInfo(g);
-              const isActive = g === grade;
-              const isPast = arr.indexOf(grade) > i;
+              const isActive = g === gradeData.grade;
+              const isPast = arr.indexOf(gradeData.grade) > i;
               return (
                 <div key={g} className="flex items-center">
                   <div className="flex flex-col items-center gap-1">
@@ -176,18 +191,18 @@ export default function MyPage() {
             })}
           </div>
 
-          {nextGrade ? (
+          {gradeData.nextGrade ? (
             <>
               <div className="flex justify-between mb-2">
                 <span style={{ fontSize: 12, color: '#9CA3AF' }}>다음 등급 진행도</span>
                 <span style={{ fontSize: 12, color: gradeInfo.color, fontWeight: 600 }}>
-                  {nextGrade.next}까지 {nextGrade.need}점
+                  {gradeData.nextGrade.next}까지 {gradeData.nextGrade.need}점
                 </span>
               </div>
               <div className="h-2.5 rounded-full overflow-hidden" style={{ background: '#F3F4F6' }}>
                 <motion.div
                   initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, (currentUser.points / (currentUser.points + nextGrade.need)) * 100)}%` }}
+                  animate={{ width: `${Math.min(100, (currentUser.points / (currentUser.points + gradeData.nextGrade.need)) * 100)}%` }}
                   transition={{ duration: 1, ease: 'easeOut' }}
                   className="h-full rounded-full"
                   style={{ background: `linear-gradient(90deg, ${gradeInfo.color}, ${gradeInfo.color}aa)` }}
@@ -227,7 +242,7 @@ export default function MyPage() {
                   </div>
                   <div>
                     <p style={{ fontSize: 13, fontWeight: 600, color: '#1F2937' }}>{h.reason}</p>
-                    <p style={{ fontSize: 11, color: '#9CA3AF' }}>{h.date}</p>
+                    <p style={{ fontSize: 11, color: '#9CA3AF' }}>{h.date.split('T')[0]}</p>
                   </div>
                 </div>
                 <span style={{ fontSize: 15, fontWeight: 700, color: '#1B2A5C' }}>+{h.points}점</span>

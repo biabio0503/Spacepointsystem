@@ -304,7 +304,7 @@ export default function SignUpPage() {
               transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
             >
               <img
-                src="/logo.png"
+                src="/logos/logo.png"
                 alt="SPACE logo"
                 style={{ width: 96, height: 96, borderRadius: '50%' }}
               />

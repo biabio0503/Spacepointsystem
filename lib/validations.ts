@@ -22,7 +22,7 @@ export const createEventSchema = z.object({
    date: z.string().min(1, '날짜를 입력해주세요').or(z.date()),
    endDate: z.string().optional().nullable().or(z.date()),
    content: z.string().min(1, '내용을 입력해주세요'),
-   imageUrl: z.string().url('올바른 URL을 입력해주세요').optional().nullable(),
+   imageUrls: z.array(z.string().url()).optional().nullable(),
    instagramUrl: z.string().url('올바른 URL을 입력해주세요').optional().nullable(),
    points: z.number().int().min(0, '포인트는 0 이상이어야 합니다').or(z.string().transform(Number)),
    postDate: z.string().min(1, '게시일을 입력해주세요').or(z.date()),

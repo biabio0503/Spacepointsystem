@@ -3,9 +3,9 @@
 import { create } from 'zustand';
 import { useEffect } from 'react';
 import { authService } from '@/lib/auth';
-import { eventsAPI, rentalItemsAPI, rentalsAPI, usersAPI, meAPI } from '@/lib/api-client';
+import { eventsAPI, rentalItemsAPI, rentalsAPI, usersAPI, meAPI, pointHistoryAPI, settingsAPI, gradeConfigsAPI } from '@/lib/api-client';
 
-export type Grade = '별' | '행성' | '로켓' | 'UFO';
+export type Grade = string; // 동적 등급 이름 지원
 
 export interface User {
    id: string;
@@ -26,7 +26,7 @@ export interface Event {
    date: string;
    endDate?: string;
    content: string;
-   imageUrl?: string;
+   imageUrls: string[];
    instagramUrl?: string;
    points: number;
    postDate: string;
@@ -66,6 +66,32 @@ export interface Rental {
    notes?: string;
 }
 
+export interface Settings {
+   id: string;
+   organizationName: string;
+   logoMain: string | null;
+   primaryColor: string;
+   secondaryColor: string;
+   contactPhone: string;
+   contactPerson: string;
+}
+
+export interface GradeConfig {
+   id: string;
+   name: string;
+   type: string; // 'ABSOLUTE_POINTS' | 'PERCENTILE'
+   minPoints: number;
+   maxPoints: number | null;
+   percentileMin: number | null; // PERCENTILE 모드용
+   percentileMax: number | null; // PERCENTILE 모드용
+   emoji: string;
+   badgeImage: string | null;
+   color: string;
+   bgColor: string;
+   benefit: string; // 등급별 혼입 설명
+   orderIndex: number;
+}
+
 export const DEPARTMENTS = [
    // 공과대학
    '기계시스템디자인공학과', '기계자동차공학과', '안전공학과', '신소재공학과', '건설시스템공학과', '건축학부',
@@ -103,6 +129,8 @@ interface StoreState {
    pointHistory: PointHistory[];
    rentalItems: RentalItem[];
    rentals: Rental[];
+   settings: Settings | null;
+   gradeConfigs: GradeConfig[];
    isLoading: boolean;
 
    // Actions
@@ -112,7 +140,18 @@ interface StoreState {
    setPointHistory: (history: PointHistory[]) => void;
    setRentalItems: (items: RentalItem[]) => void;
    setRentals: (rentals: Rental[]) => void;
+   setSettings: (settings: Settings | null) => void;
+   setGradeConfigs: (configs: GradeConfig[]) => void;
    setIsLoading: (loading: boolean) => void;
+
+   // Refresh functions
+   refreshUsers: () => Promise<void>;
+   refreshEvents: () => Promise<void>;
+   refreshPointHistory: () => Promise<void>;
+   refreshRentalItems: () => Promise<void>;
+   refreshRentals: () => Promise<void>;
+   refreshSettings: () => Promise<void>;
+   refreshGradeConfigs: () => Promise<void>;
 
    // Auth
    login: (studentId: string, password: string) => Promise<User | null>;
@@ -157,6 +196,8 @@ export const useStore = create<StoreState>((set, get) => ({
    pointHistory: [],
    rentalItems: [],
    rentals: [],
+   settings: null,
+   gradeConfigs: [],
    isLoading: true,
 
    // Setters
@@ -166,7 +207,73 @@ export const useStore = create<StoreState>((set, get) => ({
    setPointHistory: (history) => set({ pointHistory: history }),
    setRentalItems: (items) => set({ rentalItems: items }),
    setRentals: (rentals) => set({ rentals }),
+   setSettings: (settings) => set({ settings }),
+   setGradeConfigs: (configs) => set({ gradeConfigs: configs }),
    setIsLoading: (loading) => set({ isLoading: loading }),
+
+   // Refresh functions
+   refreshUsers: async () => {
+      try {
+         const { users: usersData } = await usersAPI.getAll();
+         set({ users: usersData });
+      } catch (error) {
+         console.error('Failed to refresh users:', error);
+      }
+   },
+
+   refreshEvents: async () => {
+      try {
+         const { events: eventsData } = await eventsAPI.getAll();
+         set({ events: eventsData });
+      } catch (error) {
+         console.error('Failed to refresh events:', error);
+      }
+   },
+
+   refreshPointHistory: async () => {
+      try {
+         const { pointHistory: historyData } = await pointHistoryAPI.getAll();
+         set({ pointHistory: historyData });
+      } catch (error) {
+         console.error('Failed to refresh point history:', error);
+      }
+   },
+
+   refreshRentalItems: async () => {
+      try {
+         const { rentalItems: itemsData } = await rentalItemsAPI.getAll();
+         set({ rentalItems: itemsData });
+      } catch (error) {
+         console.error('Failed to refresh rental items:', error);
+      }
+   },
+
+   refreshRentals: async () => {
+      try {
+         const { rentals: rentalsData } = await rentalsAPI.getAll();
+         set({ rentals: rentalsData });
+      } catch (error) {
+         console.error('Failed to refresh rentals:', error);
+      }
+   },
+
+   refreshSettings: async () => {
+      try {
+         const { settings: settingsData } = await settingsAPI.get();
+         set({ settings: settingsData });
+      } catch (error) {
+         console.error('Failed to refresh settings:', error);
+      }
+   },
+
+   refreshGradeConfigs: async () => {
+      try {
+         const { gradeConfigs: configsData } = await gradeConfigsAPI.getAll();
+         set({ gradeConfigs: configsData });
+      } catch (error) {
+         console.error('Failed to refresh grade configs:', error);
+      }
+   },
 
    // Auth
    login: async (studentId, password) => {
@@ -410,39 +517,109 @@ export const useStore = create<StoreState>((set, get) => ({
 
    // Utilities
    getGradeByPoints: (points, allUsers) => {
-      console.log('🔍 등급 계산:', { points, totalUsers: allUsers.length });
+      const { gradeConfigs } = get();
 
-      if (points < 10) return '별';
+      if (!gradeConfigs || gradeConfigs.length === 0) {
+         // gradeConfigs가 없으면 기본 등급 반환
+         if (points < 10) return '별';
 
-      const eligibleUsers = allUsers.filter((u) => u.points >= 10 && !u.isAdmin);
-      console.log('✅ 10점 이상 사용자:', eligibleUsers.length, '명');
+         const eligibleUsers = allUsers.filter((u) => u.points >= 10 && !u.isAdmin);
+         if (eligibleUsers.length === 0) return '행성';
 
-      if (eligibleUsers.length === 0) return '행성';
+         const sorted = [...eligibleUsers].sort((a, b) => b.points - a.points);
+         const higherCount = sorted.filter((u) => u.points > points).length;
+         const percentile = (higherCount / sorted.length) * 100;
 
-      const sorted = [...eligibleUsers].sort((a, b) => b.points - a.points);
-      const higherCount = sorted.filter((u) => u.points > points).length;
-      const percentile = (higherCount / sorted.length) * 100;
+         if (percentile < 20) return 'UFO';
+         if (percentile < 60) return '로켓';
+         return '행성';
+      }
 
-      console.log('📊 등급 판정:', {
-         myPoints: points,
-         higherCount,
-         totalEligible: sorted.length,
-         percentile: percentile.toFixed(1) + '%',
-      });
+      // 등급 설정 타입 확인 (모든 설정이 같은 타입이어야 함)
+      const gradeType = gradeConfigs[0]?.type || 'ABSOLUTE_POINTS';
 
-      if (percentile < 20) return 'UFO';
-      if (percentile < 60) return '로켓';
-      return '행성';
+      if (gradeType === 'PERCENTILE') {
+         // PERCENTILE 모드: 상위 몇% 기준
+         const eligibleUsers = allUsers.filter((u) => !u.isAdmin);
+         if (eligibleUsers.length === 0) {
+            const lowestGrade = [...gradeConfigs].sort((a, b) => a.orderIndex - b.orderIndex)[0];
+            return lowestGrade?.name || '별';
+         }
+
+         const sorted = [...eligibleUsers].sort((a, b) => b.points - a.points);
+         const userRank = sorted.findIndex((u) => u.points <= points);
+         const percentile = userRank === -1 ? 100 : (userRank / sorted.length) * 100;
+
+         // orderIndex가 높은 것부터 확인 (높은 등급부터)
+         const sortedConfigs = [...gradeConfigs].sort((a, b) => b.orderIndex - a.orderIndex);
+
+         for (const config of sortedConfigs) {
+            const meetsMin = config.percentileMin === null || percentile >= config.percentileMin;
+            const meetsMax = config.percentileMax === null || percentile < config.percentileMax;
+
+            if (meetsMin && meetsMax) {
+               return config.name;
+            }
+         }
+      } else {
+         // ABSOLUTE_POINTS 모드: 절대 포인트 기준
+         const sortedConfigs = [...gradeConfigs].sort((a, b) => b.orderIndex - a.orderIndex);
+
+         for (const config of sortedConfigs) {
+            const meetsMin = points >= config.minPoints;
+            const meetsMax = config.maxPoints === null || points <= config.maxPoints;
+
+            if (meetsMin && meetsMax) {
+               return config.name;
+            }
+         }
+      }
+
+      // 매칭되는 등급이 없으면 가장 낮은 등급 반환
+      const lowestGrade = [...gradeConfigs].sort((a, b) => a.orderIndex - b.orderIndex)[0];
+      return lowestGrade?.name || '별';
    },
 
+   // getGrade: 관리자 페이지용 (전체 유저 데이터가 로드되어 있을 때만 사용)
+   // 일반 사용자는 meAPI.getGrade()를 사용하세요
    getGrade: (userId) => {
-      const { users } = get();
-      const user = users.find((u) => u.id === userId);
+      const { users, currentUser } = get();
+      let user = users.find((u) => u.id === userId);
+
+      // users 배열에서 못 찾았고 currentUser가 해당 userId면 currentUser 사용
+      if (!user && currentUser?.id === userId) {
+         user = currentUser;
+      }
+
       if (!user) return '별';
-      return get().getGradeByPoints(user.points, users);
+
+      // 등급 계산용 users 배열 구성
+      let allUsers = [...users];
+
+      // currentUser가 users에 없으면 추가
+      if (currentUser && !allUsers.find(u => u.id === currentUser.id)) {
+         allUsers.push(currentUser);
+      }
+
+      return get().getGradeByPoints(user.points, allUsers);
    },
 
    getGradeInfo: (grade) => {
+      const { gradeConfigs } = get();
+
+      // gradeConfigs에서 해당 등급 찾기
+      const config = gradeConfigs.find(g => g.name === grade);
+
+      if (config) {
+         return {
+            color: config.color,
+            bg: config.bgColor,
+            emoji: config.emoji,
+            label: config.name,
+         };
+      }
+
+      // gradeConfigs에 없으면 기본값 반환 (하드코딩된 값)
       switch (grade) {
          case '별':
             return { color: '#8B9BC8', bg: '#EEF1FC', emoji: '⭐', label: '별' };
@@ -452,6 +629,8 @@ export const useStore = create<StoreState>((set, get) => ({
             return { color: '#7DC443', bg: '#EFF8E6', emoji: '🚀', label: '로켓' };
          case 'UFO':
             return { color: '#F5C518', bg: '#FFF8E1', emoji: '🛸', label: 'UFO' };
+         default:
+            return { color: '#8B9BC8', bg: '#EEF1FC', emoji: '⭐', label: grade };
       }
    },
 
@@ -459,26 +638,41 @@ export const useStore = create<StoreState>((set, get) => ({
 
    loadInitialData: async () => {
       try {
+
          const user = await authService.getCurrentUser();
          set({ currentUser: user });
 
-         const { events: eventsData } = await eventsAPI.getAll();
-         set({ events: eventsData });
+         // 모든 사용자에게 필요한 데이터 로드
+         const [eventsData, itemsData, settingsData, gradeConfigsData] = await Promise.all([
+            eventsAPI.getAll(),
+            rentalItemsAPI.getAll(),
+            settingsAPI.get(),
+            gradeConfigsAPI.getAll(),
+         ]);
 
-         const { rentalItems: itemsData } = await rentalItemsAPI.getAll();
-         set({ rentalItems: itemsData });
+         set({
+            events: eventsData.events,
+            rentalItems: itemsData.rentalItems,
+            settings: settingsData.settings,
+            gradeConfigs: gradeConfigsData.gradeConfigs,
+         });
 
          if (user) {
             const { rentals: rentalsData } = await rentalsAPI.getAll();
             set({ rentals: rentalsData });
 
+            // 관리자만 전체 사용자 목록 및 포인트 내역 로드 (일반 사용자는 /api/me/grade, /api/me/point-history 사용)
             if (user.isAdmin) {
                const { users: usersData } = await usersAPI.getAll();
                set({ users: usersData });
+
+               const { pointHistory: historyData } = await pointHistoryAPI.getAll();
+               set({ pointHistory: historyData });
             }
          }
+
       } catch (error) {
-         console.error('Failed to load initial data:', error);
+         console.error('❌ 초기 데이터 로딩 실패:', error);
       } finally {
          set({ isLoading: false });
       }
@@ -495,9 +689,13 @@ if (typeof window !== 'undefined') {
             const { rentals: rentalsData } = await rentalsAPI.getAll();
             useStore.setState({ rentals: rentalsData });
 
+            // 관리자만 전체 사용자 목록 및 포인트 내역 로드 (일반 사용자는 /api/me/grade, /api/me/point-history 사용)
             if (user.isAdmin) {
                const { users: usersData } = await usersAPI.getAll();
                useStore.setState({ users: usersData });
+
+               const { pointHistory: historyData } = await pointHistoryAPI.getAll();
+               useStore.setState({ pointHistory: historyData });
             }
          } catch (error) {
             console.error('Failed to reload data after login:', error);
@@ -514,10 +712,26 @@ if (typeof window !== 'undefined') {
 
 // StoreInitializer component for Next.js
 export function StoreInitializer() {
+   const settings = useStore((state) => state.settings);
+
    useEffect(() => {
       const loadInitialData = useStore.getState().loadInitialData;
       loadInitialData();
    }, []);
+
+   // settings가 로드되면 CSS 변수를 동적으로 업데이트
+   useEffect(() => {
+      if (settings) {
+         const root = document.documentElement;
+
+         if (settings.primaryColor) {
+            root.style.setProperty('--primary', settings.primaryColor);
+         }
+         if (settings.secondaryColor) {
+            root.style.setProperty('--secondary', settings.secondaryColor);
+         }
+      }
+   }, [settings]);
 
    return null;
 }

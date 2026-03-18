@@ -103,9 +103,16 @@ export async function POST(request: NextRequest) {
 
       const quantityNum = typeof quantity === 'number' ? quantity : parseInt(quantity);
 
-      if (item.available < quantityNum) {
+      // 현재 available 계산 (동적)
+      const activeRentals = await prisma.rental.aggregate({
+         where: { itemId, status: 'active' },
+         _sum: { quantity: true },
+      });
+      const available = item.totalStock - (activeRentals._sum.quantity || 0);
+
+      if (available < quantityNum) {
          return NextResponse.json(
-            { error: `재고가 부족합니다. (현재 재고: ${item.available}개)` },
+            { error: `재고가 부족합니다. (현재 재고: ${available}개)` },
             { status: 400 }
          );
       }
@@ -135,12 +142,10 @@ export async function POST(request: NextRequest) {
             },
          });
 
-         // 재고 차감
+         // 재고 차감 (DB 참고용)
          await tx.rentalItem.update({
             where: { id: itemId },
-            data: {
-               available: { decrement: quantityNum },
-            },
+            data: { available: { decrement: quantityNum } },
          });
 
          return newRental;

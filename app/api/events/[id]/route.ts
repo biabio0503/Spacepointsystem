@@ -71,7 +71,7 @@ export async function PATCH(
          date,
          endDate,
          content,
-         imageUrl,
+         imageUrls,
          instagramUrl,
          points,
          postDate,
@@ -85,7 +85,7 @@ export async function PATCH(
       if (date !== undefined) updateData.date = new Date(date);
       if (endDate !== undefined) updateData.endDate = endDate ? new Date(endDate) : null;
       if (content !== undefined) updateData.content = content;
-      if (imageUrl !== undefined) updateData.imageUrl = imageUrl || null;
+      if (imageUrls !== undefined) updateData.imageUrls = imageUrls || [];
       if (instagramUrl !== undefined) updateData.instagramUrl = instagramUrl || null;
       if (points !== undefined) updateData.points = typeof points === 'number' ? points : parseInt(points);
       if (postDate !== undefined) updateData.postDate = new Date(postDate);

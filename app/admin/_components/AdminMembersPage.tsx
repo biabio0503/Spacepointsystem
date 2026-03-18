@@ -1,20 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Search, Plus, Gift, Trash2 } from 'lucide-react';
+import { Search, Plus, Gift, Trash2, Edit2, Shield } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 
 export default function AdminMembersPage() {
-  const { users, getGrade, getGradeInfo, addPoints, deleteUser } = useStore();
+  const { users, currentUser, getGrade, getGradeInfo, addPoints, deleteUser, updateUser, refreshUsers, refreshPointHistory } = useStore();
   const [search, setSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [editingUser, setEditingUser] = useState<string | null>(null);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const [pointAmount, setPointAmount] = useState(10);
   const [pointReason, setPointReason] = useState('');
   const [sortBy, setSortBy] = useState<'points' | 'name' | 'joined'>('points');
+  const [editForm, setEditForm] = useState({
+    name: '',
+    department: '',
+    phone: '',
+    studentId: '',
+  });
 
-  const realUsers = users.filter(u => !u.isAdmin);
+  useEffect(() => {
+    refreshUsers();
+    refreshPointHistory();
+  }, []);
+
+  // 자기 자신을 제외한 모든 사용자 (관리자 포함)
+  const realUsers = users.filter(u => u.id !== currentUser?.id);
 
   const filtered = realUsers.filter(u =>
     u.name.includes(search) ||
@@ -37,13 +50,76 @@ export default function AdminMembersPage() {
     setPointReason('');
   };
 
+  const handleEditUser = async () => {
+    if (!editingUser) return;
+    try {
+      await updateUser(editingUser, editForm);
+      setEditingUser(null);
+      setEditForm({ name: '', department: '', phone: '', studentId: '' });
+    } catch (error) {
+      console.error('Failed to update user:', error);
+      alert('사용자 정보 수정에 실패했습니다.');
+    }
+  };
+
+  const handleToggleAdmin = async (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+
+    const action = user.isAdmin ? '일반 유저로 강등' : '관리자로 승격';
+    const newStatus = !user.isAdmin;
+
+    if (confirm(`${user.name}님을 ${action}하시겠습니까?`)) {
+      try {
+        await updateUser(userId, { isAdmin: newStatus });
+        alert(`${action}되었습니다.`);
+      } catch (error) {
+        console.error('Failed to toggle admin:', error);
+        alert(`${action}에 실패했습니다.`);
+      }
+    }
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+    setUserToDelete(userId);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    try {
+      await deleteUser(userToDelete);
+      setUserToDelete(null);
+      alert('사용자가 삭제되었습니다.');
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      alert('사용자 삭제에 실패했습니다.');
+    }
+  };
+
+  const openEditModal = (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+    setEditForm({
+      name: user.name,
+      department: user.department,
+      phone: user.phone,
+      studentId: user.studentId,
+    });
+    setEditingUser(userId);
+  };
+
   const selectedUserData = selectedUser ? users.find(u => u.id === selectedUser) : null;
+  const editingUserData = editingUser ? users.find(u => u.id === editingUser) : null;
 
   return (
     <div className="px-5 py-5">
       <div className="mb-4">
         <h2 style={{ fontSize: 20, fontWeight: 800, color: '#1B2A5C' }}>가입자 관리</h2>
-        <p style={{ fontSize: 13, color: '#6B7280' }}>총 {realUsers.length}명 가입</p>
+        <p style={{ fontSize: 13, color: '#6B7280' }}>
+          총 {realUsers.length}명 (관리자 {realUsers.filter(u => u.isAdmin).length}명)
+        </p>
       </div>
 
       {/* Search */}
@@ -95,43 +171,76 @@ export default function AdminMembersPage() {
               transition={{ delay: i * 0.04 }}
               className="bg-white rounded-xl p-3.5 shadow-sm"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div
                     className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                     style={{ background: info.bg }}
                   >
                     <span style={{ fontSize: 18 }}>{info.emoji}</span>
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span style={{ fontSize: 14, fontWeight: 700, color: '#1F2937' }}>{user.name}</span>
+                      {user.isAdmin && (
+                        <span
+                          className="px-1.5 py-0.5 rounded-full text-xs font-bold"
+                          style={{ background: '#DBEAFE', color: '#3B82F6', fontSize: 9 }}
+                        >
+                          관리자
+                        </span>
+                      )}
                       <span
                         className="px-1.5 py-0.5 rounded-full text-xs font-bold"
-                        style={{ background: info.bg, color: info.color, fontSize: 10 }}
+                        style={{ background: info.bg, color: info.color, fontSize: 9 }}
                       >
                         {grade}
                       </span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#1B2A5C' }}>{user.points}점</span>
                     </div>
                     <p style={{ fontSize: 11, color: '#9CA3AF' }}>
                       {user.studentId} · {user.department}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span style={{ fontSize: 15, fontWeight: 800, color: '#1B2A5C' }}>{user.points}점</span>
+                <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                  <button
+                    onClick={() => handleToggleAdmin(user.id)}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center"
+                    style={{ background: user.isAdmin ? '#DBEAFE' : '#FEF3C7' }}
+                    title={user.isAdmin ? '일반 유저로 강등' : '관리자로 승격'}
+                  >
+                    <Shield size={14} color={user.isAdmin ? '#3B82F6' : '#F59E0B'} />
+                  </button>
+                  <button
+                    onClick={() => openEditModal(user.id)}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center"
+                    style={{ background: '#F0F9FF' }}
+                    title="정보 수정"
+                  >
+                    <Edit2 size={14} color="#3B82F6" />
+                  </button>
                   <button
                     onClick={() => setSelectedUser(user.id)}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center"
                     style={{ background: '#EEF1FC' }}
+                    title="포인트 지급"
                   >
-                    <Plus size={16} color="#1B2A5C" />
+                    <Plus size={14} color="#1B2A5C" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteUser(user.id)}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center"
+                    style={{ background: '#FEE2E2' }}
+                    title="사용자 삭제"
+                  >
+                    <Trash2 size={14} color="#EF4444" />
                   </button>
                 </div>
               </div>
               <div className="mt-2 flex items-center gap-2">
                 <span style={{ fontSize: 10, color: '#D1D5DB' }}>📱 {user.phone}</span>
-                <span style={{ fontSize: 10, color: '#D1D5DB' }}>📅 {user.joinedAt}</span>
+                <span style={{ fontSize: 10, color: '#D1D5DB' }}>📅 {typeof user.joinedAt === 'string' ? user.joinedAt.split('T')[0] : new Date(user.joinedAt).toISOString().split('T')[0]}</span>
               </div>
             </motion.div>
           );
@@ -150,7 +259,7 @@ export default function AdminMembersPage() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="fixed inset-0 z-50 flex items-end justify-center"
+          className="fixed inset-0 z-[60] flex items-end justify-center"
           style={{ background: 'rgba(0,0,0,0.5)' }}
           onClick={() => setSelectedUser(null)}
         >
@@ -241,6 +350,176 @@ export default function AdminMembersPage() {
                 }}
               >
                 지급하기
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Edit user modal */}
+      {editingUser && editingUserData && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 z-[60] flex items-end justify-center"
+          style={{ background: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setEditingUser(null)}
+        >
+          <motion.div
+            initial={{ y: 100 }}
+            animate={{ y: 0 }}
+            className="bg-white rounded-t-3xl w-full max-w-[430px] p-6 max-h-[90vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-5">
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center"
+                style={{ background: '#F0F9FF' }}
+              >
+                <Edit2 size={24} color="#3B82F6" />
+              </div>
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 800, color: '#1F2937' }}>가입자 정보 수정</h3>
+                <p style={{ fontSize: 13, color: '#6B7280' }}>{editingUserData.name}</p>
+              </div>
+            </div>
+
+            <div className="space-y-4 mb-5">
+              <div>
+                <label className="block mb-1.5" style={{ fontSize: 13, color: '#555', fontWeight: 600 }}>
+                  이름 <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                  placeholder="이름"
+                  className="w-full px-4 py-3 rounded-xl border outline-none"
+                  style={{ borderColor: '#E5E7EB', background: '#F9F9F9', fontSize: 15 }}
+                />
+              </div>
+
+              <div>
+                <label className="block mb-1.5" style={{ fontSize: 13, color: '#555', fontWeight: 600 }}>
+                  학번 <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editForm.studentId}
+                  onChange={e => setEditForm({ ...editForm, studentId: e.target.value })}
+                  placeholder="학번"
+                  className="w-full px-4 py-3 rounded-xl border outline-none"
+                  style={{ borderColor: '#E5E7EB', background: '#F9F9F9', fontSize: 15 }}
+                />
+              </div>
+
+              <div>
+                <label className="block mb-1.5" style={{ fontSize: 13, color: '#555', fontWeight: 600 }}>
+                  학과 <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editForm.department}
+                  onChange={e => setEditForm({ ...editForm, department: e.target.value })}
+                  placeholder="학과"
+                  className="w-full px-4 py-3 rounded-xl border outline-none"
+                  style={{ borderColor: '#E5E7EB', background: '#F9F9F9', fontSize: 15 }}
+                />
+              </div>
+
+              <div>
+                <label className="block mb-1.5" style={{ fontSize: 13, color: '#555', fontWeight: 600 }}>
+                  전화번호 <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <input
+                  type="tel"
+                  value={editForm.phone}
+                  onChange={e => setEditForm({ ...editForm, phone: e.target.value })}
+                  placeholder="010-0000-0000"
+                  className="w-full px-4 py-3 rounded-xl border outline-none"
+                  style={{ borderColor: '#E5E7EB', background: '#F9F9F9', fontSize: 15 }}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setEditingUser(null)}
+                className="flex-1 py-3 rounded-xl border"
+                style={{ borderColor: '#E5E7EB', color: '#6B7280', fontWeight: 600 }}
+              >
+                취소
+              </button>
+              <button
+                onClick={handleEditUser}
+                disabled={!editForm.name.trim() || !editForm.studentId.trim() || !editForm.department.trim() || !editForm.phone.trim()}
+                className="flex-1 py-3 rounded-xl text-white"
+                style={{
+                  background: editForm.name.trim() && editForm.studentId.trim() && editForm.department.trim() && editForm.phone.trim()
+                    ? 'linear-gradient(135deg, #3B82F6, #2563EB)'
+                    : '#E5E7EB',
+                  fontWeight: 700,
+                  color: editForm.name.trim() && editForm.studentId.trim() && editForm.department.trim() && editForm.phone.trim() ? 'white' : '#9CA3AF',
+                }}
+              >
+                수정하기
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {userToDelete && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 z-[60] flex items-end justify-center"
+          style={{ background: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setUserToDelete(null)}
+        >
+          <motion.div
+            initial={{ y: 100 }}
+            animate={{ y: 0 }}
+            className="bg-white rounded-t-3xl w-full max-w-[430px] p-6"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-5">
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center"
+                style={{ background: '#FEE2E2' }}
+              >
+                <Trash2 size={24} color="#EF4444" />
+              </div>
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 800, color: '#1F2937' }}>사용자 삭제</h3>
+                <p style={{ fontSize: 13, color: '#6B7280' }}>정말 삭제하시겠습니까?</p>
+              </div>
+            </div>
+
+            <div className="mb-5 p-4 rounded-xl" style={{ background: '#FEF2F2' }}>
+              <p style={{ fontSize: 14, color: '#991B1B', lineHeight: '1.6' }}>
+                이 작업은 되돌릴 수 없습니다. 사용자의 모든 포인트 기록과 대여 내역이 삭제됩니다.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setUserToDelete(null)}
+                className="flex-1 py-3 rounded-xl border"
+                style={{ borderColor: '#E5E7EB', color: '#6B7280', fontWeight: 600 }}
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmDeleteUser}
+                className="flex-1 py-3 rounded-xl text-white"
+                style={{
+                  background: 'linear-gradient(135deg, #EF4444, #DC2626)',
+                  fontWeight: 700,
+                }}
+              >
+                삭제하기
               </button>
             </div>
           </motion.div>

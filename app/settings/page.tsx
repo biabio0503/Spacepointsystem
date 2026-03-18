@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { ChevronLeft, LogOut, AlertCircle } from 'lucide-react';
@@ -8,7 +8,7 @@ import { useStore } from '@/store/useStore';
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { currentUser, updateUser, logout } = useStore();
+  const { currentUser, updateUser, logout, settings } = useStore();
   const [form, setForm] = useState({
     name: currentUser?.name ?? '',
     phone: currentUser?.phone ?? '',
@@ -17,8 +17,16 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
+  const primaryColor = settings?.primaryColor || '#1B2A5C';
+  const secondaryColor = settings?.secondaryColor || '#7DC443';
+
+  useEffect(() => {
+    if (!currentUser) {
+      router.replace('/login');
+    }
+  }, [currentUser, router]);
+
   if (!currentUser) {
-    router.replace('/login');
     return null;
   }
 
@@ -57,7 +65,7 @@ export default function SettingsPage() {
       {/* Header */}
       <div
         className="px-5 pt-12 pb-5"
-        style={{ background: 'linear-gradient(135deg, #0D1B3E, #1B2A5C)' }}
+        style={{ background: `linear-gradient(135deg, #0D1B3E, ${primaryColor})` }}
       >
         <div className="flex items-center gap-3">
           <button onClick={() => router.back()}>
@@ -109,7 +117,7 @@ export default function SettingsPage() {
             onClick={handleSave}
             className="w-full py-3 rounded-xl text-white transition-all"
             style={{
-              background: saved ? '#7DC443' : 'linear-gradient(135deg, #1B2A5C, #2E4A9A)',
+              background: saved ? secondaryColor : `linear-gradient(135deg, ${primaryColor}, #2E4A9A)`,
               fontWeight: 700,
               fontSize: 15,
             }}
@@ -148,9 +156,9 @@ export default function SettingsPage() {
             className="mt-4 p-3 rounded-xl flex items-start gap-2"
             style={{ background: '#EEF1FC' }}
           >
-            <AlertCircle size={16} color="#1B2A5C" className="mt-0.5 flex-shrink-0" />
-            <p style={{ fontSize: 12, color: '#1B2A5C', lineHeight: '1.5' }}>
-              학번 및 학과 변경은 <strong>010-6778-5658 (김규원)</strong>으로 문의해주세요.
+            <AlertCircle size={16} color={primaryColor} className="mt-0.5 flex-shrink-0" />
+            <p style={{ fontSize: 12, color: primaryColor, lineHeight: '1.5' }}>
+              학번 및 학과 변경은 <strong>{settings?.contactPhone} {settings?.contactPerson}</strong>으로 문의해주세요.
             </p>
           </div>
         </div>
@@ -159,7 +167,7 @@ export default function SettingsPage() {
         <div className="bg-white rounded-2xl p-5 shadow-sm">
           <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1F2937', marginBottom: 12 }}>계정 정보</h3>
           {[
-            { label: '가입일', value: typeof currentUser.joinedAt === 'string' ? currentUser.joinedAt : new Date(currentUser.joinedAt).toLocaleDateString() },
+            { label: '가입일', value: typeof currentUser.joinedAt === 'string' ? currentUser.joinedAt.split('T')[0] : new Date(currentUser.joinedAt).toLocaleDateString() },
             { label: '현재 포인트', value: `${currentUser.points}점` },
           ].map(item => (
             <div key={item.label} className="flex justify-between py-2.5 border-b border-gray-50 last:border-0">
@@ -185,7 +193,7 @@ export default function SettingsPage() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="fixed inset-0 z-50 flex items-center justify-center px-6"
+          className="fixed inset-0 z-[60] flex items-center justify-center px-6"
           style={{ background: 'rgba(0,0,0,0.5)' }}
         >
           <motion.div

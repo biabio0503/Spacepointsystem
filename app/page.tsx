@@ -4,7 +4,6 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { useStore } from '@/store/useStore';
-const logoImg = '/logo.png';
 
 export default function LoadingPage() {
   const router = useRouter();
@@ -78,7 +77,7 @@ export default function LoadingPage() {
             transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
           >
             <img
-              src={logoImg}
+              src="/logos/logo.png"
               alt="SPACE logo"
               style={{ width: 110, height: 110, borderRadius: '50%' }}
             />

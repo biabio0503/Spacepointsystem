@@ -1,10 +1,8 @@
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
-import { LayoutDashboard, Calendar, Users, LogOut, Package, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, LogOut, Package, ClipboardList, Settings } from 'lucide-react';
 import { useStore } from '@/store/useStore';
-
-const logoImg = '/logo.svg';
 
 const navItems = [
   { path: '/admin', icon: LayoutDashboard, label: '홈' },
@@ -12,12 +10,17 @@ const navItems = [
   { path: '/admin/rental-items', icon: Package, label: '대여품목' },
   { path: '/admin/rentals', icon: ClipboardList, label: '대여현황' },
   { path: '/admin/members', icon: Users, label: '가입자' },
+  { path: '/admin/settings', icon: Settings, label: '설정' },
 ];
 
 export default function AdminLayout({ children }: { children?: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { logout } = useStore();
+  const { logout, settings } = useStore();
+
+  const logoImg = settings?.logoMain || '/logos/logo.png';
+  const orgName = settings?.organizationName || 'SPACE';
+  const primaryColor = settings?.primaryColor || '#1B2A5C';
 
   const handleLogout = () => {
     logout();
@@ -29,12 +32,12 @@ export default function AdminLayout({ children }: { children?: React.ReactNode }
       {/* Top bar */}
       <div
         className="px-5 py-4 flex items-center justify-between"
-        style={{ background: 'linear-gradient(135deg, #0A1328, #1B2A5C)' }}
+        style={{ background: `linear-gradient(135deg, #0A1328, ${primaryColor})` }}
       >
         <div className="flex items-center gap-2.5">
-          <img src={logoImg} alt="SPACE logo" style={{ width: 36, height: 36, borderRadius: '50%' }} />
+          <img src={logoImg} alt={`${orgName} logo`} style={{ width: 36, height: 36, borderRadius: '50%' }} />
           <div>
-            <h1 className="text-white" style={{ fontSize: 16, fontWeight: 800, letterSpacing: '1px' }}>SPACE</h1>
+            <h1 className="text-white" style={{ fontSize: 16, fontWeight: 800, letterSpacing: '1px' }}>{orgName}</h1>
             <p className="text-white/50" style={{ fontSize: 11 }}>관리자 모드</p>
           </div>
         </div>
@@ -66,12 +69,12 @@ export default function AdminLayout({ children }: { children?: React.ReactNode }
               >
                 <Icon
                   size={22}
-                  color={isActive ? '#1B2A5C' : '#9CA3AF'}
+                  color={isActive ? primaryColor : '#9CA3AF'}
                   strokeWidth={isActive ? 2.5 : 1.8}
                 />
                 <span
                   className="text-[10px]"
-                  style={{ color: isActive ? '#1B2A5C' : '#9CA3AF', fontWeight: isActive ? 600 : 400 }}
+                  style={{ color: isActive ? primaryColor : '#9CA3AF', fontWeight: isActive ? 600 : 400 }}
                 >
                   {label}
                 </span>

@@ -6,7 +6,7 @@ import { motion } from 'motion/react';
 import { useStore } from '@/store/useStore';
 import { authService } from '@/lib/auth';
 
-const logoImg = '/logo.png';
+const logoImg = '/logos/logo.png';
 
 export default function LoginPage() {
   const router = useRouter();

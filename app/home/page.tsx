@@ -4,19 +4,24 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { Bell, Settings, ChevronRight, Instagram, QrCode, Gift, Star, TrendingUp } from 'lucide-react';
-import { useStore } from '@/store/useStore';
+import { useStore, type Grade } from '@/store/useStore';
 import { GradeBadge, GradeIcon } from '@/app/_components/shared/GradeBadge';
 import { BottomNav } from '@/app/_components/shared/BottomNav';
+import { meAPI } from '@/lib/api-client';
 
-const EVENT_IMAGES: Record<string, string> = {
-  e1: 'https://images.unsplash.com/photo-1674801800498-cebd8db582a9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
-  e2: 'https://images.unsplash.com/photo-1764920265158-500a6e60c487?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
-  e3: 'https://images.unsplash.com/photo-1744659749905-471decea0ea7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400',
-};
+interface GradeData {
+  grade: Grade;
+  rank: number | null;
+  totalEligible: number;
+  topPercent: number | null;
+  nextGrade: { next: string; need: number } | null;
+  points: number;
+}
 
 export default function HomePage() {
   const router = useRouter();
-  const { currentUser, events, users, getGrade, getGradeInfo, addPoints, pointHistory } = useStore();
+  const { currentUser, events, getGradeInfo, addPoints, refreshEvents } = useStore();
+  const [gradeData, setGradeData] = useState<GradeData | null>(null);
   const [pointClicked, setPointClicked] = useState(false);
   const [pointError, setPointError] = useState<string | null>(null);
 
@@ -26,35 +31,31 @@ export default function HomePage() {
     }
   }, [currentUser, router]);
 
-  if (!currentUser) {
+  // 등급 정보 로드
+  useEffect(() => {
+    if (currentUser) {
+      meAPI.getGrade()
+        .then(setGradeData)
+        .catch(err => console.error('Failed to load grade:', err));
+    }
+  }, [currentUser]);
+
+  // 이벤트 목록 로드
+  useEffect(() => {
+    refreshEvents();
+  }, []);
+
+  if (!currentUser || !gradeData) {
     return null;
   }
 
-  const grade = getGrade(currentUser.id);
-  const gradeInfo = getGradeInfo(grade);
+  const gradeInfo = getGradeInfo(gradeData.grade);
 
   // Upcoming events (active, sorted by date)
   const upcomingEvents = (events || [])
     .filter(e => e.isActive)
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 3);
-
-  // Calculate next grade threshold
-  const getNextGradeInfo = () => {
-    const eligibleUsers = (users || []).filter(u => u.points >= 10 && !u.isAdmin);
-    const sorted = [...eligibleUsers].sort((a, b) => b.points - a.points);
-    const total = sorted.length;
-    if (grade === '별') return { next: '행성', need: 10 - currentUser.points, emoji: '🪐' };
-    if (grade === 'UFO') return null;
-    const top20idx = Math.floor(total * 0.2);
-    const top20Points = sorted[top20idx]?.points ?? 0;
-    if (grade === '로켓') return { next: 'UFO', need: Math.max(0, top20Points - currentUser.points + 1), emoji: '🛸' };
-    const top60idx = Math.floor(total * 0.6);
-    const top60Points = sorted[Math.max(0, top60idx - 1)]?.points ?? currentUser.points;
-    return { next: '로켓', need: Math.max(0, top60Points - currentUser.points + 1), emoji: '🚀' };
-  };
-
-  const nextGrade = getNextGradeInfo();
 
   const handleGetPoints = async () => {
     if (pointClicked) return;
@@ -138,9 +139,9 @@ export default function HomePage() {
         >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <GradeIcon grade={grade} size={52} />
+              <GradeIcon grade={gradeData.grade} size={52} />
               <div>
-                <GradeBadge grade={grade} size="sm" />
+                <GradeBadge grade={gradeData.grade} size="sm" />
                 <p className="mt-0.5" style={{ fontSize: 13, color: '#6B7280' }}>{currentUser.department}</p>
               </div>
             </div>
@@ -153,18 +154,18 @@ export default function HomePage() {
           </div>
 
           {/* Progress bar to next grade */}
-          {nextGrade ? (
+          {gradeData.nextGrade ? (
             <div>
               <div className="flex justify-between mb-1.5">
                 <span style={{ fontSize: 11, color: '#9CA3AF' }}>다음 등급까지</span>
                 <span style={{ fontSize: 11, color: gradeInfo.color, fontWeight: 600 }}>
-                  {nextGrade.emoji} {nextGrade.next}까지 {nextGrade.need}점 더!
+                  {getGradeInfo(gradeData.nextGrade.next as Grade).emoji} {gradeData.nextGrade.next}까지 {gradeData.nextGrade.need}점 더!
                 </span>
               </div>
               <div className="h-2 rounded-full overflow-hidden" style={{ background: '#F3F4F6' }}>
                 <motion.div
                   initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, (currentUser.points / (currentUser.points + nextGrade.need)) * 100)}%` }}
+                  animate={{ width: `${Math.min(100, (currentUser.points / (currentUser.points + gradeData.nextGrade.need)) * 100)}%` }}
                   transition={{ delay: 0.5, duration: 1, ease: 'easeOut' }}
                   className="h-full rounded-full"
                   style={{ background: `linear-gradient(90deg, ${gradeInfo.color}, ${gradeInfo.color}aa)` }}
@@ -244,56 +245,60 @@ export default function HomePage() {
         </div>
 
         <div className="space-y-3">
-          {upcomingEvents.map((event, i) => (
-            <motion.div
-              key={event.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 * i }}
-              className="bg-white rounded-2xl overflow-hidden shadow-sm flex"
-              style={{ height: 90 }}
-            >
-              <div
-                className="w-20 flex-shrink-0 flex items-center justify-center"
-                style={{
-                  background: EVENT_IMAGES[event.id]
-                    ? `url(${EVENT_IMAGES[event.id]}) center/cover`
-                    : 'linear-gradient(135deg, #1B2A5C, #253671)',
-                }}
+          {upcomingEvents.map((event, i) => {
+            const displayImage = event.imageUrls?.[0];
+
+            return (
+              <motion.div
+                key={event.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 * i }}
+                className="bg-white rounded-2xl overflow-hidden shadow-sm flex"
+                style={{ height: 90 }}
               >
-                {!EVENT_IMAGES[event.id] && (
-                  <span style={{ fontSize: 28 }}>🚀</span>
-                )}
-              </div>
-              <div className="flex-1 px-3 py-2.5 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1F2937' }}>{event.title}</h3>
+                <div
+                  className="w-20 flex-shrink-0 flex items-center justify-center"
+                  style={{
+                    background: displayImage
+                      ? `url(${displayImage}) center/cover`
+                      : 'linear-gradient(135deg, #1B2A5C, #253671)',
+                  }}
+                >
+                  {!displayImage && (
+                    <span style={{ fontSize: 28 }}>🚀</span>
+                  )}
+                </div>
+                <div className="flex-1 px-3 py-2.5 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1F2937' }}>{event.title}</h3>
+                      <span
+                        className="px-1.5 py-0.5 rounded-md text-xs font-bold"
+                        style={{ background: '#EEF1FC', color: '#1B2A5C', fontSize: 10 }}
+                      >
+                        +{event.points}점
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
+                      📍 {event.location}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span style={{ fontSize: 11, color: '#9CA3AF' }}>
+                      📅 {formatDate(event.date)}
+                    </span>
                     <span
-                      className="px-1.5 py-0.5 rounded-md text-xs font-bold"
-                      style={{ background: '#EEF1FC', color: '#1B2A5C', fontSize: 10 }}
+                      className="px-2 py-0.5 rounded-full text-xs font-bold"
+                      style={{ background: '#1B2A5C', color: 'white', fontSize: 10 }}
                     >
-                      +{event.points}점
+                      {getDday(event.date)}
                     </span>
                   </div>
-                  <p style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
-                    📍 {event.location}
-                  </p>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span style={{ fontSize: 11, color: '#9CA3AF' }}>
-                    📅 {formatDate(event.date)}
-                  </span>
-                  <span
-                    className="px-2 py-0.5 rounded-full text-xs font-bold"
-                    style={{ background: '#1B2A5C', color: 'white', fontSize: 10 }}
-                  >
-                    {getDday(event.date)}
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
       </div>
 
@@ -319,7 +324,7 @@ export default function HomePage() {
                 </div>
                 <p style={{ fontSize: 12, color: '#6B7280' }}>{item.benefit}</p>
               </div>
-              {grade === item.grade && (
+              {gradeData.grade === item.grade && (
                 <span
                   className="px-2 py-0.5 rounded-full text-xs"
                   style={{ background: item.color + '20', color: item.color, fontWeight: 600 }}

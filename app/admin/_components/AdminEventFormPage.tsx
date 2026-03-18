@@ -31,7 +31,7 @@ export default function AdminEventFormPage() {
   const router = useRouter();
   const params = useParams();
   const id = typeof params.id === 'string' ? params.id : undefined;
-  const { events, addEvent, updateEvent } = useStore();
+  const { events, addEvent, updateEvent, refreshEvents } = useStore();
   const isEdit = !!id;
   const existingEvent = isEdit ? events.find(e => e.id === id) : null;
 
@@ -41,7 +41,7 @@ export default function AdminEventFormPage() {
     date: '',
     endDate: '',
     content: '',
-    imageUrl: '',
+    imageUrls: [] as string[],
     instagramUrl: '',
     points: 10,
     postDate: '',
@@ -51,68 +51,137 @@ export default function AdminEventFormPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string>('');
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+
+  // 날짜를 input type="date" 형식으로 변환하는 함수
+  const formatDateForInput = (dateString: string | null | undefined): string => {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '';
+      // YYYY-MM-DD 형식으로 변환
+      return date.toISOString().split('T')[0];
+    } catch {
+      return '';
+    }
+  };
+
+  // 이벤트 데이터 로드
+  useEffect(() => {
+    if (isEdit) {
+      refreshEvents();
+    }
+  }, [isEdit]);
 
   useEffect(() => {
     if (existingEvent) {
       setForm({
         title: existingEvent.title,
         location: existingEvent.location,
-        date: existingEvent.date,
-        endDate: existingEvent.endDate ?? '',
+        date: formatDateForInput(existingEvent.date),
+        endDate: formatDateForInput(existingEvent.endDate),
         content: existingEvent.content,
-        imageUrl: existingEvent.imageUrl ?? '',
+        imageUrls: existingEvent.imageUrls ?? [],
         instagramUrl: existingEvent.instagramUrl ?? '',
         points: existingEvent.points,
-        postDate: existingEvent.postDate,
-        postEndDate: existingEvent.postEndDate,
+        postDate: formatDateForInput(existingEvent.postDate),
+        postEndDate: formatDateForInput(existingEvent.postEndDate),
         isActive: existingEvent.isActive,
       });
-      // 기존 이미지가 있으면 프리뷰 설정
-      if (existingEvent.imageUrl) {
-        setImagePreview(existingEvent.imageUrl);
+      // 기존 이미지들이 있으면 프리뷰 설정
+      if (existingEvent.imageUrls && existingEvent.imageUrls.length > 0) {
+        setImagePreviews(existingEvent.imageUrls);
       }
     }
   }, [existingEvent]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    // 이미지 미리보기
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-
-    // 업로드
     setUploading(true);
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('bucket', 'event-images');
+    const uploadedUrls: string[] = [];
+    const newPreviews: string[] = [];
 
     try {
-      const response = await fetch('/api/upload/image', {
-        method: 'POST',
-        body: formData,
-      });
+      // 각 파일을 순차적으로 업로드
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
 
-      const data = await response.json();
+        // 이미지 미리보기
+        const reader = new FileReader();
+        const previewPromise = new Promise<string>((resolve) => {
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
+        const preview = await previewPromise;
+        newPreviews.push(preview);
 
-      if (!response.ok) {
-        throw new Error(data.error || '이미지 업로드 실패');
+        // 업로드
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('bucket', 'event-images');
+
+        const response = await fetch('/api/upload/image', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || '이미지 업로드 실패');
+        }
+
+        uploadedUrls.push(data.url);
       }
 
-      // 업로드된 이미지 URL 설정
-      setForm(p => ({ ...p, imageUrl: data.url }));
+      // 기존 이미지들과 합치기
+      setImagePreviews(prev => [...prev, ...newPreviews]);
+      setForm(p => ({
+        ...p,
+        imageUrls: [...p.imageUrls, ...uploadedUrls],
+      }));
     } catch (error: any) {
       console.error('이미지 업로드 에러:', error);
       alert(error.message || '이미지 업로드에 실패했습니다.');
-      setImagePreview('');
     } finally {
       setUploading(false);
+      // input 파일 선택 초기화
+      e.target.value = '';
     }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
+    setForm(p => {
+      const newImageUrls = p.imageUrls.filter((_, i) => i !== index);
+      return {
+        ...p,
+        imageUrls: newImageUrls,
+      };
+    });
+  };
+
+  const handleMoveImage = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= imagePreviews.length) return;
+
+    setImagePreviews(prev => {
+      const newPreviews = [...prev];
+      const [movedItem] = newPreviews.splice(fromIndex, 1);
+      newPreviews.splice(toIndex, 0, movedItem);
+      return newPreviews;
+    });
+
+    setForm(p => {
+      const newUrls = [...p.imageUrls];
+      const [movedUrl] = newUrls.splice(fromIndex, 1);
+      newUrls.splice(toIndex, 0, movedUrl);
+      return {
+        ...p,
+        imageUrls: newUrls,
+      };
+    });
   };
 
   const validate = () => {
@@ -130,10 +199,16 @@ export default function AdminEventFormPage() {
 
   const handleSubmit = () => {
     if (!validate()) return;
+    const submitData = {
+      ...form,
+      endDate: form.endDate || undefined,
+      imageUrls: form.imageUrls.length > 0 ? form.imageUrls : [],
+      instagramUrl: form.instagramUrl || undefined
+    };
     if (isEdit && id) {
-      updateEvent(id, { ...form, endDate: form.endDate || undefined, imageUrl: form.imageUrl || undefined, instagramUrl: form.instagramUrl || undefined });
+      updateEvent(id, submitData);
     } else {
-      addEvent({ ...form, endDate: form.endDate || undefined, imageUrl: form.imageUrl || undefined, instagramUrl: form.instagramUrl || undefined });
+      addEvent(submitData);
     }
     setSaved(true);
     setTimeout(() => router.push('/admin/events'), 1000);
@@ -216,59 +291,94 @@ export default function AdminEventFormPage() {
           {/* 이미지 업로드 */}
           <div>
             <label className="block mb-1.5" style={{ fontSize: 13, color: '#555', fontWeight: 600 }}>
-              행사 이미지
+              행사 이미지 (최대 10장)
             </label>
 
-            {/* 이미지 미리보기 */}
-            {imagePreview && (
-              <div className="mb-3 relative">
-                <img
-                  src={imagePreview}
-                  alt="행사 이미지 미리보기"
-                  className="w-full h-48 object-cover rounded-xl"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setImagePreview('');
-                    setForm(p => ({ ...p, imageUrl: '' }));
-                  }}
-                  className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center"
-                  style={{ fontSize: 18, fontWeight: 700 }}
-                >
-                  ×
-                </button>
+            {/* 이미지 미리보기 그리드 */}
+            {imagePreviews.length > 0 && (
+              <div className="mb-3 grid grid-cols-2 gap-2">
+                {imagePreviews.map((preview, index) => (
+                  <div key={index} className="relative group">
+                    <img
+                      src={preview}
+                      alt={`행사 이미지 ${index + 1}`}
+                      className="w-full h-32 object-cover rounded-xl"
+                    />
+                    {/* 순서 표시 */}
+                    <div
+                      className="absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                      style={{ background: 'rgba(0,0,0,0.7)' }}
+                    >
+                      {index + 1}
+                    </div>
+                    {/* 삭제 버튼 */}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(index)}
+                      className="absolute top-2 right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      style={{ fontSize: 16, fontWeight: 700 }}
+                    >
+                      ×
+                    </button>
+                    {/* 순서 변경 버튼 */}
+                    <div className="absolute bottom-2 right-2 flex gap-1">
+                      {index > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => handleMoveImage(index, index - 1)}
+                          className="w-7 h-7 bg-white/90 rounded-full flex items-center justify-center text-xs font-bold shadow"
+                          style={{ color: '#1B2A5C' }}
+                        >
+                          ←
+                        </button>
+                      )}
+                      {index < imagePreviews.length - 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleMoveImage(index, index + 1)}
+                          className="w-7 h-7 bg-white/90 rounded-full flex items-center justify-center text-xs font-bold shadow"
+                          style={{ color: '#1B2A5C' }}
+                        >
+                          →
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 
             {/* 파일 업로드 버튼 */}
-            <div className="relative">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                disabled={uploading}
-                className="hidden"
-                id="event-image-upload"
-              />
-              <label
-                htmlFor="event-image-upload"
-                className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl border-2 border-dashed cursor-pointer transition-colors"
-                style={{
-                  borderColor: uploading ? '#9CA3AF' : '#D1D5DB',
-                  background: uploading ? '#F9FAFB' : '#FAFAFA',
-                  color: uploading ? '#9CA3AF' : '#6B7280',
-                  cursor: uploading ? 'not-allowed' : 'pointer',
-                }}
-              >
-                <Image size={20} />
-                <span style={{ fontSize: 14, fontWeight: 500 }}>
-                  {uploading ? '업로드 중...' : imagePreview ? '다른 이미지 선택' : '이미지 선택'}
-                </span>
-              </label>
-            </div>
+            {imagePreviews.length < 10 && (
+              <div className="relative">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageUpload}
+                  disabled={uploading}
+                  className="hidden"
+                  id="event-image-upload"
+                />
+                <label
+                  htmlFor="event-image-upload"
+                  className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl border-2 border-dashed cursor-pointer transition-colors"
+                  style={{
+                    borderColor: uploading ? '#9CA3AF' : '#D1D5DB',
+                    background: uploading ? '#F9FAFB' : '#FAFAFA',
+                    color: uploading ? '#9CA3AF' : '#6B7280',
+                    cursor: uploading ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  <Image size={20} />
+                  <span style={{ fontSize: 14, fontWeight: 500 }}>
+                    {uploading ? '업로드 중...' : `이미지 추가 (${imagePreviews.length}/10)`}
+                  </span>
+                </label>
+              </div>
+            )}
             <p className="mt-1" style={{ fontSize: 11, color: '#9CA3AF' }}>
-              JPEG, PNG, GIF, WebP 형식 / 최대 5MB
+              JPEG, PNG, GIF, WebP 형식 / 최대 5MB / 여러 파일 선택 가능
             </p>
           </div>
 

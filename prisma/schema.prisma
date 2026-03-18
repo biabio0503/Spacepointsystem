@@ -37,7 +37,7 @@ model Event {
   date         DateTime
   endDate      DateTime?
   content      String
-  imageUrl     String?
+  imageUrls    String[]  @default([])
   instagramUrl String?
   points       Int
   postDate     DateTime
@@ -68,7 +68,7 @@ model RentalItem {
   name        String
   category    String
   totalStock  Int
-  available   Int
+  available   Int      // deprecated: 동적 계산으로 대체, DB에는 유지
   imageUrl    String?
   emoji       String?
   description String?
@@ -100,4 +100,39 @@ model Rental {
   @@index([itemId, status])
   @@index([rentalDate])
   @@map("rentals")
+}
+
+model Settings {
+  id              String   @id @default(uuid())
+  organizationName String  @default("학생복지위원회")
+  logoMain        String?  // 메인 로고
+  primaryColor    String   @default("#1B2A5C")
+  secondaryColor  String   @default("#7DC443")
+  contactPhone    String   @default("010-0000-0000")  // 학번/학과 변경 문의 전화번호
+  contactPerson   String   @default("담당자")           // 담당자 이름 및 직책
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("settings")
+}
+
+model GradeConfig {
+  id             String   @id @default(uuid())
+  name           String   // 등급 이름 (예: "새싹", "꽃봉오리", ...)
+  type           String   @default("ABSOLUTE_POINTS") // "ABSOLUTE_POINTS" | "PERCENTILE"
+  minPoints      Int      // 최소 포인트 (ABSOLUTE_POINTS 모드)
+  maxPoints      Int?     // 최대 포인트 (null이면 무제한)
+  percentileMin  Float?   // 최소 퍼센트 (PERCENTILE 모드, 예: 0, 10.5)
+  percentileMax  Float?   // 최대 퍼센트 (예: 10, 30)
+  emoji          String   // 이모지
+  badgeImage     String?  // 배지 이미지 URL
+  color          String   // 색상
+  bgColor        String   // 배경색
+  benefit        String   @default("")  // 등급별 혜택 설명
+  orderIndex     Int      // 순서 (낮을수록 낮은 등급)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([orderIndex])
+  @@map("grade_configs")
 }

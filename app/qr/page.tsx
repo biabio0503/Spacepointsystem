@@ -5,13 +5,24 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, RefreshCw, CheckCircle } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { useStore } from '@/store/useStore';
+import { useStore, type Grade } from '@/store/useStore';
 import { GradeBadge } from '@/app/_components/shared/GradeBadge';
 import { BottomNav } from '@/app/_components/shared/BottomNav';
+import { meAPI } from '@/lib/api-client';
+
+interface GradeData {
+  grade: Grade;
+  rank: number | null;
+  totalEligible: number;
+  topPercent: number | null;
+  nextGrade: { next: string; need: number } | null;
+  points: number;
+}
 
 export default function QRPage() {
   const router = useRouter();
-  const { currentUser, getGrade } = useStore();
+  const { currentUser } = useStore();
+  const [gradeData, setGradeData] = useState<GradeData | null>(null);
   const [scanned, setScanned] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [qrKey, setQrKey] = useState(Date.now());
@@ -22,11 +33,19 @@ export default function QRPage() {
     }
   }, [currentUser, router]);
 
-  if (!currentUser) {
+  // 등급 정보 로드
+  useEffect(() => {
+    if (currentUser) {
+      meAPI.getGrade()
+        .then(setGradeData)
+        .catch(err => console.error('Failed to load grade:', err));
+    }
+  }, [currentUser]);
+
+  if (!currentUser || !gradeData) {
     return null;
   }
 
-  const grade = getGrade(currentUser.id);
   const qrData = JSON.stringify({
     studentId: currentUser.studentId,
     name: currentUser.name,
@@ -96,7 +115,7 @@ export default function QRPage() {
                 {currentUser.studentId} · {currentUser.department}
               </p>
             </div>
-            <GradeBadge grade={grade} size="sm" />
+            <GradeBadge grade={gradeData.grade} size="sm" />
           </div>
 
           {/* QR Code */}

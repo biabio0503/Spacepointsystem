@@ -20,7 +20,26 @@ export async function GET(request: NextRequest) {
          orderBy: { name: 'asc' },
       });
 
-      return NextResponse.json({ items });
+      // 모든 active 렌탈을 한 번에 조회 (효율성 개선)
+      const activeRentalsGrouped = await prisma.rental.groupBy({
+         by: ['itemId'],
+         where: { status: 'active' },
+         _sum: { quantity: true },
+      });
+
+      // Map으로 변환하여 빠른 조회
+      const rentalMap = new Map(
+         activeRentalsGrouped.map(r => [r.itemId, r._sum.quantity || 0])
+      );
+
+      // 각 아이템의 available 계산
+      const itemsWithAvailable = items.map(item => {
+         const rentedQuantity = rentalMap.get(item.id) || 0;
+         const available = item.totalStock - rentedQuantity;
+         return { ...item, available };
+      });
+
+      return NextResponse.json({ rentalItems: itemsWithAvailable });
    } catch (error) {
       console.error('Get rental items error:', error);
       return NextResponse.json(
@@ -66,16 +85,19 @@ export async function POST(request: NextRequest) {
             name,
             category,
             totalStock: typeof totalStock === 'number' ? totalStock : parseInt(totalStock),
-            available: typeof totalStock === 'number' ? totalStock : parseInt(totalStock),
+            available: typeof totalStock === 'number' ? totalStock : parseInt(totalStock), // 초기값
             emoji: emoji || null,
             description: description || null,
             isActive: true,
          },
       });
 
+      // available 계산 (새 아이템이므로 totalStock과 동일)
+      const itemWithAvailable = { ...item, available: item.totalStock };
+
       return NextResponse.json({
          message: '대여 물품이 생성되었습니다.',
-         item,
+         rentalItem: itemWithAvailable,
       });
    } catch (error) {
       console.error('Create rental item error:', error);

@@ -72,12 +72,10 @@ export async function PATCH(
             },
          });
 
-         // 재고 복구
+         // 재고 복구 (DB 참고용)
          await tx.rentalItem.update({
             where: { id: rental.itemId },
-            data: {
-               available: { increment: rental.quantity },
-            },
+            data: { available: { increment: rental.quantity } },
          });
 
          return updated;
@@ -95,3 +93,6 @@ export async function PATCH(
       );
    }
 }
+
+// POST /api/rentals/[id]/return - PATCH와 동일 (POST 메소드 지원)
+export const POST = PATCH;

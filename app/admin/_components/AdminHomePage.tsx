@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { ChevronRight } from 'lucide-react';
@@ -7,7 +8,13 @@ import { useStore } from '@/store/useStore';
 
 export default function AdminHomePage() {
   const router = useRouter();
-  const { users, events, pointHistory, getGrade, getGradeInfo } = useStore();
+  const { users, events, pointHistory, getGrade, getGradeInfo, refreshUsers, refreshEvents, refreshPointHistory } = useStore();
+
+  useEffect(() => {
+    refreshUsers();
+    refreshEvents();
+    refreshPointHistory();
+  }, []);
 
   const realUsers = users.filter(u => !u.isAdmin);
   const totalPoints = realUsers.reduce((sum, u) => sum + u.points, 0);
@@ -141,7 +148,7 @@ export default function AdminHomePage() {
           <div key={h.id} className={`flex items-center justify-between py-2.5 ${i < recentHistory.length - 1 ? 'border-b border-gray-50' : ''}`}>
             <div>
               <p style={{ fontSize: 13, fontWeight: 600, color: '#1F2937' }}>{getUserName(h.userId)}</p>
-              <p style={{ fontSize: 11, color: '#9CA3AF' }}>{h.reason} · {h.date}</p>
+              <p style={{ fontSize: 11, color: '#9CA3AF' }}>{h.reason} · {h.date.split('T')[0]}</p>
             </div>
             <span style={{ fontSize: 14, fontWeight: 700, color: '#1B2A5C' }}>+{h.points}점</span>
           </div>

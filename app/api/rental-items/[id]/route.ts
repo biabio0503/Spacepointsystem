@@ -4,6 +4,56 @@ import { createClient } from '@/lib/supabase/server';
 import { updateRentalItemSchema } from '@/lib/validations';
 import { z } from 'zod';
 
+// GET /api/rental-items/[id] - 대여 물품 상세 조회
+export async function GET(
+   request: NextRequest,
+   { params }: { params: Promise<{ id: string }> }
+) {
+   try {
+      const { id } = await params;
+      const item = await prisma.rentalItem.findUnique({
+         where: { id },
+         include: {
+            rentals: {
+               include: {
+                  user: {
+                     select: {
+                        studentId: true,
+                        name: true,
+                        department: true,
+                     },
+                  },
+               },
+               orderBy: { rentalDate: 'desc' },
+            },
+         },
+      });
+
+      if (!item) {
+         return NextResponse.json(
+            { error: '대여 물품을 찾을 수 없습니다.' },
+            { status: 404 }
+         );
+      }
+
+      // available 동적 계산
+      const activeRentalsSum = await prisma.rental.aggregate({
+         where: { itemId: id, status: 'active' },
+         _sum: { quantity: true },
+      });
+      const available = item.totalStock - (activeRentalsSum._sum.quantity || 0);
+      const itemWithAvailable = { ...item, available };
+
+      return NextResponse.json({ rentalItem: itemWithAvailable });
+   } catch (error) {
+      console.error('Get rental item error:', error);
+      return NextResponse.json(
+         { error: '대여 물품 조회 중 오류가 발생했습니다.' },
+         { status: 500 }
+      );
+   }
+}
+
 // PATCH /api/rental-items/[id] - 대여 물품 수정 (관리자만)
 export async function PATCH(
    request: NextRequest,
@@ -58,12 +108,17 @@ export async function PATCH(
       if (description !== undefined) updateData.description = description || null;
       if (isActive !== undefined) updateData.isActive = isActive;
 
-      // 재고 수량 변경 시 available도 조정
+      // 현재 대여중인 수량 계산 (한 번만 조회)
+      const activeRentalsSum = await prisma.rental.aggregate({
+         where: { itemId: id, status: 'active' },
+         _sum: { quantity: true },
+      });
+      const rentedQuantity = activeRentalsSum._sum.quantity || 0;
+
+      // totalStock 변경 시 available도 동적 계산하여 저장 (참고용)
       if (totalStock !== undefined) {
-         const stockNum = typeof totalStock === 'number' ? totalStock : parseInt(totalStock);
-         const stockDiff = stockNum - currentItem.totalStock;
-         updateData.totalStock = stockNum;
-         updateData.available = currentItem.available + stockDiff;
+         updateData.totalStock = typeof totalStock === 'number' ? totalStock : parseInt(totalStock);
+         updateData.available = updateData.totalStock - rentedQuantity;
       }
 
       const item = await prisma.rentalItem.update({
@@ -71,9 +126,13 @@ export async function PATCH(
          data: updateData,
       });
 
+      // available 동적 계산 (이미 계산된 값 사용)
+      const available = item.totalStock - rentedQuantity;
+      const itemWithAvailable = { ...item, available };
+
       return NextResponse.json({
          message: '대여 물품이 수정되었습니다.',
-         item,
+         rentalItem: itemWithAvailable,
       });
    } catch (error) {
       console.error('Update rental item error:', error);
@@ -92,6 +151,9 @@ export async function PATCH(
       );
    }
 }
+
+// PUT /api/rental-items/[id] - 대여 물품 수정 (관리자만) - PATCH와 동일
+export const PUT = PATCH;
 
 // DELETE /api/rental-items/[id] - 대여 물품 삭제 (관리자만)
 export async function DELETE(

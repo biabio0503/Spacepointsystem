@@ -1,14 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
 import type { Rental } from '@/store/useStore';
 import { motion } from 'motion/react';
 import { Package, User, Calendar, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 
 export default function AdminRentalsPage() {
-  const { rentals, rentalItems, users, returnRental, updateRental } = useStore();
+  const { rentals, rentalItems, users, returnRental, updateRental, refreshRentals, refreshRentalItems, refreshUsers } = useStore();
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'returned' | 'overdue'>('all');
+
+  useEffect(() => {
+    refreshRentals();
+    refreshRentalItems();
+    refreshUsers();
+  }, []);
 
   const filteredRentals = rentals.filter(rental => {
     if (filterStatus === 'all') return true;
@@ -125,7 +131,12 @@ export default function AdminRentalsPage() {
                     <div className="flex items-start gap-3 flex-1">
                       <Package size={24} color="#1B2A5C" className="flex-shrink-0 mt-1" />
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-gray-800">{item.name}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-gray-800">{item.name}</h3>
+                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded">
+                            {rental.quantity}개
+                          </span>
+                        </div>
                         <p className="text-sm text-gray-600">{item.category}</p>
                       </div>
                     </div>
@@ -142,18 +153,21 @@ export default function AdminRentalsPage() {
                       <User size={16} />
                       <span>{user.name} ({user.studentId})</span>
                     </div>
+                    <div className="flex items-center gap-2 text-gray-500 text-xs">
+                      <span>📞 {user.phone}</span>
+                    </div>
                     <div className="flex items-center gap-2 text-gray-600">
                       <Calendar size={16} />
-                      <span>대여: {rental.rentalDate}</span>
+                      <span>대여: {rental.rentalDate.split('T')[0]}</span>
                     </div>
                     <div className="flex items-center gap-2 text-gray-600">
                       <Clock size={16} />
-                      <span>반납예정: {rental.expectedReturnDate}</span>
+                      <span>반납예정: {rental.expectedReturnDate.split('T')[0]}</span>
                     </div>
                     {rental.returnDate && (
                       <div className="flex items-center gap-2 text-green-600">
                         <CheckCircle size={16} />
-                        <span>반납: {rental.returnDate}</span>
+                        <span>반납: {rental.returnDate.split('T')[0]}</span>
                       </div>
                     )}
                     {rental.notes && (

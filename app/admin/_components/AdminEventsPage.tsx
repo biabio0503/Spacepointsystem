@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { Plus, Edit, Trash2, Calendar, MapPin, Star } from 'lucide-react';
@@ -8,8 +8,12 @@ import { useStore, Event } from '@/store/useStore';
 
 export default function AdminEventsPage() {
   const router = useRouter();
-  const { events, deleteEvent, updateEvent } = useStore();
+  const { events, deleteEvent, updateEvent, refreshEvents } = useStore();
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    refreshEvents();
+  }, []);
 
   const sortedEvents = [...events].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
@@ -146,7 +150,7 @@ export default function AdminEventsPage() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="fixed inset-0 z-50 flex items-center justify-center px-6"
+          className="fixed inset-0 z-[60] flex items-center justify-center px-6"
           style={{ background: 'rgba(0,0,0,0.5)' }}
         >
           <motion.div

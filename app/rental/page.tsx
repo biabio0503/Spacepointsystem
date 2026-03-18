@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
 import type { RentalItem } from '@/store/useStore';
 import { motion, AnimatePresence } from 'motion/react';
@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { BottomNav } from '@/app/_components/shared/BottomNav';
 
 export default function RentalPage() {
-  const { currentUser, rentalItems, rentals, createRental } = useStore();
+  const { currentUser, rentalItems, rentals, createRental, refreshRentalItems, refreshRentals } = useStore();
   const [selectedCategory, setSelectedCategory] = useState<string>('전체');
   const [selectedItem, setSelectedItem] = useState<RentalItem | null>(null);
   const [showRentalDialog, setShowRentalDialog] = useState(false);
@@ -17,6 +17,13 @@ export default function RentalPage() {
   const [notes, setNotes] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    refreshRentalItems();
+    if (currentUser) {
+      refreshRentals();
+    }
+  }, [currentUser]);
 
   const categories = ['전체', ...Array.from(new Set((rentalItems || []).map(item => item.category)))];
   const filteredItems = selectedCategory === '전체'
@@ -89,10 +96,10 @@ export default function RentalPage() {
                     <div className="flex-1">
                       <h3 className="font-bold text-gray-800">{item.name}</h3>
                       <p className="text-xs text-gray-500 mt-1">
-                        대여일: {rental.rentalDate}
+                        대여일: {rental.rentalDate.split('T')[0]}
                       </p>
                       <p className="text-xs text-gray-500">
-                        반납예정: {rental.expectedReturnDate}
+                        반납예정: {rental.expectedReturnDate.split('T')[0]}
                       </p>
                     </div>
                     <div
@@ -180,7 +187,7 @@ export default function RentalPage() {
                 position: 'fixed',
                 inset: 0,
                 backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                zIndex: 9998,
+                zIndex: 60,
               }}
             />
             <motion.div
@@ -197,7 +204,7 @@ export default function RentalPage() {
                 height: 'fit-content',
                 maxHeight: '90vh',
                 overflow: 'auto',
-                zIndex: 9999,
+                zIndex: 61,
               }}
             >
               <div className="flex items-start justify-between mb-4">
@@ -274,7 +281,7 @@ export default function RentalPage() {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
-            className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-full shadow-lg z-50 flex items-center gap-2"
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-full shadow-lg z-[60] flex items-center gap-2"
           >
             <CheckCircle size={20} />
             <span className="font-medium">대여 신청이 완료되었습니다!</span>

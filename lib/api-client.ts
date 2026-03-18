@@ -25,7 +25,18 @@ async function fetchAPI<T>(endpoint: string, options: FetchOptions = {}): Promis
       },
    });
 
-   const data = await response.json();
+   // 빈 응답 또는 비-JSON 응답 안전 처리
+   const text = await response.text();
+   let data: any = {};
+   if (text) {
+      try {
+         data = JSON.parse(text);
+      } catch {
+         if (!response.ok) {
+            throw new Error(`서버 오류 (${response.status})`);
+         }
+      }
+   }
 
    if (!response.ok) {
       throw new Error(data.error || 'API 요청 실패');
@@ -48,7 +59,7 @@ export const eventsAPI = {
 
    update: (id: string, eventData: any) =>
       fetchAPI<{ event: any }>(`/events/${id}`, {
-         method: 'PUT',
+         method: 'PATCH',
          body: JSON.stringify(eventData),
       }),
 
@@ -72,7 +83,7 @@ export const rentalItemsAPI = {
 
    update: (id: string, itemData: any) =>
       fetchAPI<{ rentalItem: any }>(`/rental-items/${id}`, {
-         method: 'PUT',
+         method: 'PATCH',
          body: JSON.stringify(itemData),
       }),
 
@@ -84,7 +95,7 @@ export const rentalItemsAPI = {
 
 // Rentals API
 export const rentalsAPI = {
-   getAll: () => fetchAPI<{ rentals: any[] }>('/rentals'),
+   getAll: (isAdmin: boolean = true) => fetchAPI<{ rentals: any[] }>(`/rentals${isAdmin ? '?admin=true' : ''}`),
 
    getById: (id: string) => fetchAPI<{ rental: any }>(`/rentals/${id}`),
 
@@ -124,6 +135,11 @@ export const usersAPI = {
       }),
 };
 
+// Point History API (관리자용)
+export const pointHistoryAPI = {
+   getAll: () => fetchAPI<{ pointHistory: any[] }>('/point-history'),
+};
+
 // Me API (현재 사용자 전용)
 export const meAPI = {
    claimPoints: (points: number = 2, reason: string = '웹 로그인 포인트') =>
@@ -131,6 +147,27 @@ export const meAPI = {
          method: 'POST',
          body: JSON.stringify({ points, reason }),
       }),
+
+   getGrade: () =>
+      fetchAPI<{
+         grade: '별' | '행성' | '로켓' | 'UFO';
+         rank: number | null;
+         totalEligible: number;
+         topPercent: number | null;
+         nextGrade: { next: string; need: number } | null;
+         points: number;
+      }>('/me/grade'),
+
+   getPointHistory: () =>
+      fetchAPI<{
+         pointHistory: Array<{
+            id: string;
+            userId: string;
+            points: number;
+            reason: string;
+            date: string;
+         }>;
+      }>('/me/point-history'),
 };
 
 // Image Upload API
@@ -167,4 +204,37 @@ export const uploadAPI = {
 
       return data;
    },
+};
+
+// Settings API
+export const settingsAPI = {
+   get: () => fetchAPI<{ settings: any }>('/settings'),
+
+   update: (settingsData: any) =>
+      fetchAPI<{ settings: any }>('/settings', {
+         method: 'PATCH',
+         body: JSON.stringify(settingsData),
+      }),
+};
+
+// Grade Configs API
+export const gradeConfigsAPI = {
+   getAll: () => fetchAPI<{ gradeConfigs: any[] }>('/grade-configs'),
+
+   create: (configData: any) =>
+      fetchAPI<{ gradeConfig: any }>('/grade-configs', {
+         method: 'POST',
+         body: JSON.stringify(configData),
+      }),
+
+   update: (id: string, configData: any) =>
+      fetchAPI<{ gradeConfig: any }>(`/grade-configs/${id}`, {
+         method: 'PATCH',
+         body: JSON.stringify(configData),
+      }),
+
+   delete: (id: string) =>
+      fetchAPI<{ message: string }>(`/grade-configs/${id}`, {
+         method: 'DELETE',
+      }),
 };

@@ -11,20 +11,23 @@ export async function GET(request: NextRequest) {
       const onlyActive = searchParams.get('active') === 'true';
 
       const now = new Date();
+
+      const whereCondition = onlyActive
+         ? {
+            isActive: true,
+            postDate: { lte: now },
+            postEndDate: { gte: now },
+         }
+         : undefined;
+
       const events = await prisma.event.findMany({
-         where: onlyActive
-            ? {
-               isActive: true,
-               postDate: { lte: now },
-               postEndDate: { gte: now },
-            }
-            : undefined,
+         where: whereCondition,
          orderBy: { date: 'desc' },
       });
 
       return NextResponse.json({ events });
    } catch (error) {
-      console.error('Get events error:', error);
+      console.error('❌ Get events error:', error);
       return NextResponse.json(
          { error: '이벤트 조회 중 오류가 발생했습니다.' },
          { status: 500 }
@@ -67,7 +70,7 @@ export async function POST(request: NextRequest) {
          date,
          endDate,
          content,
-         imageUrl,
+         imageUrls,
          instagramUrl,
          points,
          postDate,
@@ -81,7 +84,7 @@ export async function POST(request: NextRequest) {
             date: new Date(date),
             endDate: endDate ? new Date(endDate) : null,
             content,
-            imageUrl: imageUrl || null,
+            imageUrls: imageUrls || [],
             instagramUrl: instagramUrl || null,
             points: typeof points === 'number' ? points : parseInt(points),
             postDate: new Date(postDate),

@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
 import type { RentalItem } from '@/store/useStore';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Edit2, Trash2, Package, X, Save } from 'lucide-react';
 
 export default function AdminRentalItemsPage() {
-  const { rentalItems, addRentalItem, updateRentalItem, deleteRentalItem } = useStore();
+  const { rentalItems, rentals, addRentalItem, updateRentalItem, deleteRentalItem, refreshRentalItems, refreshRentals } = useStore();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<RentalItem | null>(null);
   const [formData, setFormData] = useState({
@@ -15,12 +15,33 @@ export default function AdminRentalItemsPage() {
     category: '',
     emoji: '',
     totalStock: 1,
-    available: 1,
     description: '',
   });
+  const [isNewCategory, setIsNewCategory] = useState(false);
+
+  useEffect(() => {
+    refreshRentalItems();
+    refreshRentals();
+  }, []);
 
   // rentalItems가 undefined일 수 있으므로 안전하게 처리
   const items = rentalItems || [];
+
+  // 기존 카테고리 목록 추출
+  const existingCategories = Array.from(new Set(items.map(item => item.category))).sort();
+
+  // 특정 물품의 대여 가능 수량 계산 (편집 모드용)
+  const calculateAvailable = (itemId: string, totalStock: number) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return totalStock;
+
+    // 현재 대여 중인 수량 계산
+    const rentedQuantity = (rentals || []).filter(r =>
+      r.itemId === itemId && r.status === 'active'
+    ).reduce((sum, r) => sum + r.quantity, 0);
+
+    return totalStock - rentedQuantity;
+  };
 
   const popularEmojis = ['📦', '💳', '🛏️', '🏕️', '🔋', '🔌', '📷', '🤳', '🌀', '🔊', '🧮', '👆', '🖱️', '🧤', '⚽', '☂️', '📱', '💻', '🎒', '📚'];
 
@@ -30,17 +51,18 @@ export default function AdminRentalItemsPage() {
       category: '',
       emoji: '',
       totalStock: 1,
-      available: 1,
       description: '',
     });
     setEditingItem(null);
+    setIsNewCategory(false);
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!formData.name || !formData.category) return;
 
-    addRentalItem({
+    await addRentalItem({
       ...formData,
+      available: formData.totalStock, // 초기 대여 가능 수량은 총 재고와 동일
       emoji: formData.emoji || undefined,
       isActive: true,
     });
@@ -56,17 +78,22 @@ export default function AdminRentalItemsPage() {
       category: item.category,
       emoji: item.emoji || '',
       totalStock: item.totalStock,
-      available: item.available,
       description: item.description || '',
     });
+    // 기존 카테고리에 없는 경우 새 카테고리로 처리
+    setIsNewCategory(!existingCategories.includes(item.category));
     setShowAddDialog(true);
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!editingItem || !formData.name || !formData.category) return;
 
-    updateRentalItem(editingItem.id, {
+    // 총 재고가 변경된 경우 available 재계산
+    const newAvailable = calculateAvailable(editingItem.id, formData.totalStock);
+
+    await updateRentalItem(editingItem.id, {
       ...formData,
+      available: newAvailable,
       emoji: formData.emoji || undefined,
     });
 
@@ -223,7 +250,7 @@ export default function AdminRentalItemsPage() {
                 position: 'fixed',
                 inset: 0,
                 backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                zIndex: 9998,
+                zIndex: 60,
               }}
             />
             <motion.div
@@ -240,7 +267,7 @@ export default function AdminRentalItemsPage() {
                 height: 'fit-content',
                 maxHeight: '90vh',
                 overflow: 'auto',
-                zIndex: 9999,
+                zIndex: 61,
               }}
             >
               <div className="flex items-start justify-between mb-4">
@@ -276,13 +303,55 @@ export default function AdminRentalItemsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     카테고리 *
                   </label>
-                  <input
-                    type="text"
-                    value={formData.category}
-                    onChange={e => setFormData({ ...formData, category: e.target.value })}
-                    placeholder="예: 보조배터리"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-blue-500"
-                  />
+
+                  {/* 기존 카테고리 선택 */}
+                  {!isNewCategory && existingCategories.length > 0 && (
+                    <div className="mb-2">
+                      <select
+                        value={formData.category}
+                        onChange={e => {
+                          if (e.target.value === '__new__') {
+                            setIsNewCategory(true);
+                            setFormData({ ...formData, category: '' });
+                          } else {
+                            setFormData({ ...formData, category: e.target.value });
+                          }
+                        }}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-blue-500 bg-white"
+                      >
+                        <option value="">카테고리 선택</option>
+                        {existingCategories.map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                        <option value="__new__">+ 새 카테고리 만들기</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {/* 새 카테고리 입력 */}
+                  {(isNewCategory || existingCategories.length === 0) && (
+                    <div>
+                      <input
+                        type="text"
+                        value={formData.category}
+                        onChange={e => setFormData({ ...formData, category: e.target.value })}
+                        placeholder="새 카테고0리 입력 (예: 전자기기)"
+                        className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-blue-500"
+                      />
+                      {existingCategories.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsNewCategory(false);
+                            setFormData({ ...formData, category: '' });
+                          }}
+                          className="mt-2 text-sm text-blue-600 hover:underline"
+                        >
+                          ← 기존 카테고리 선택하기
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -327,7 +396,6 @@ export default function AdminRentalItemsPage() {
                       onChange={e => setFormData({
                         ...formData,
                         totalStock: Math.max(1, Number(e.target.value)),
-                        available: Math.min(formData.available, Number(e.target.value))
                       })}
                       className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-blue-500"
                     />
@@ -335,19 +403,22 @@ export default function AdminRentalItemsPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      대여 가능 *
+                      대여 가능 (자동 계산)
                     </label>
-                    <input
-                      type="number"
-                      min="0"
-                      max={formData.totalStock}
-                      value={formData.available}
-                      onChange={e => setFormData({
-                        ...formData,
-                        available: Math.min(formData.totalStock, Math.max(0, Number(e.target.value)))
-                      })}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-blue-500"
-                    />
+                    <div className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-600 flex items-center justify-between">
+                      <span>
+                        {editingItem
+                          ? calculateAvailable(editingItem.id, formData.totalStock)
+                          : formData.totalStock
+                        }
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        (총 {formData.totalStock}개)
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      * 대여 중인 수량을 제외한 가능 수량
+                    </p>
                   </div>
                 </div>
 
