@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ChevronLeft, Image as ImageIcon } from 'lucide-react';
-import { useForm } from 'react-hook-form';
+import { type Resolver, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useStore } from '@/store/useStore';
 import { adminEventFormSchema, type AdminEventFormInput } from '@/lib/validations';
@@ -56,7 +56,7 @@ export default function AdminEventFormPage() {
     handleSubmit,
     formState: { errors },
   } = useForm<AdminEventFormInput>({
-    resolver: zodResolver(adminEventFormSchema),
+    resolver: zodResolver(adminEventFormSchema) as Resolver<AdminEventFormInput>,
     defaultValues: {
       title: '',
       location: '',
@@ -256,7 +256,7 @@ export default function AdminEventFormPage() {
             />
             <InputField
               label="종료 날짜" type="date"
-              value={form.endDate}
+              value={form.endDate ?? ''}
               onChange={(v: string) => setValue('endDate', v, { shouldValidate: true })}
               hint="기간 행사 시 입력"
             />
@@ -382,7 +382,7 @@ export default function AdminEventFormPage() {
 
           <InputField
             label="인스타그램 게시물 주소"
-            value={form.instagramUrl}
+            value={form.instagramUrl ?? ''}
             onChange={(v: string) => setValue('instagramUrl', v, { shouldValidate: true })}
             placeholder="https://instagram.com/..."
             hint="게시물 URL을 입력해주세요 (선택)"

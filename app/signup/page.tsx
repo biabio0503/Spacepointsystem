@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'motion/react';
 import { ChevronDown, ChevronLeft } from 'lucide-react';
@@ -21,7 +21,7 @@ type SignUpFormValues = SignUpBasicInfoInput & SignUpPasswordInput & SignUpOptio
 type MembershipFeeStatus = 'paid' | 'not_paid' | 'unknown';
 type SignUpStep = 0 | 1 | 2 | 3 | 'welcome';
 
-export default function SignUpPage() {
+function SignUpPageContent() {
    const router = useRouter();
    const searchParams = useSearchParams();
 
@@ -619,5 +619,13 @@ export default function SignUpPage() {
             )}
          </form>
       </div>
+   );
+}
+
+export default function SignUpPage() {
+   return (
+      <Suspense fallback={<div className="min-h-screen" style={{ background: '#F0F2F8' }} />}>
+         <SignUpPageContent />
+      </Suspense>
    );
 }

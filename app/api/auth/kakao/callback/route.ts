@@ -85,16 +85,10 @@ export async function GET(request: NextRequest) {
          // 로그인 성공 - /home으로 리다이렉트
          return NextResponse.redirect(new URL('/home', request.url));
       } else {
-         // 신규 사용자 - 회원가입 페이지로 리다이렉트
-         const signupUrl = new URL('/signup/kakao', request.url);
-         signupUrl.searchParams.set('kakaoId', kakaoId);
-
-         // 카카오 프로필 정보가 있으면 전달
-         if (userInfo.kakao_account?.profile?.nickname) {
-            signupUrl.searchParams.set('nickname', userInfo.kakao_account.profile.nickname);
-         }
-
-         return NextResponse.redirect(signupUrl);
+         // 카카오 회원가입은 현재 미적용 상태이므로 로그인 화면으로 안내
+         return NextResponse.redirect(
+            new URL('/login?error=kakao_disabled&message=' + encodeURIComponent('카카오 회원가입은 아직 지원하지 않습니다.'), request.url)
+         );
       }
    } catch (error) {
       console.error('카카오 로그인 처리 중 오류:', error);

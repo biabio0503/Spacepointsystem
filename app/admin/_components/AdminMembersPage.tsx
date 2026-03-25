@@ -227,12 +227,17 @@ export default function AdminMembersPage() {
         {sorted.map((user, i) => {
           const grade = getGrade(user.id);
           const info = getGradeInfo(grade);
-          const membershipStatus = (user as any).membershipFeeStatus || 'unknown';
-          const membershipInfo = {
+          const membershipStatusRaw = (user as any).membershipFeeStatus;
+          const membershipInfoMap = {
             paid: { emoji: '✅', label: '납부', bg: '#ECFDF5', color: '#10B981' },
             not_paid: { emoji: '❌', label: '미납', bg: '#FEF2F2', color: '#EF4444' },
             unknown: { emoji: '❓', label: '모름', bg: '#FFFBEB', color: '#F59E0B' },
-          }[membershipStatus];
+          } as const;
+          const membershipStatus: keyof typeof membershipInfoMap =
+            membershipStatusRaw === 'paid' || membershipStatusRaw === 'not_paid' || membershipStatusRaw === 'unknown'
+              ? membershipStatusRaw
+              : 'unknown';
+          const membershipInfo = membershipInfoMap[membershipStatus];
 
           return (
             <motion.div
