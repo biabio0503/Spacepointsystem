@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth-utils';
 import { createRentalItemSchema } from '@/lib/validations';
 import { z } from 'zod';
 
@@ -11,16 +11,30 @@ export async function GET(request: NextRequest) {
       const category = searchParams.get('category');
       const onlyActive = searchParams.get('active') === 'true';
 
-      const where: any = {};
-      if (category) where.category = category;
-      if (onlyActive) where.isActive = true;
-
       const items = await prisma.rentalItem.findMany({
-         where,
+         where: {
+            ...(category ? { category } : {}),
+            ...(onlyActive ? { isActive: true } : {}),
+         },
          orderBy: { name: 'asc' },
       });
 
-      return NextResponse.json({ items });
+      // 각 아이템의 실제 available 계산
+      const rentalItems = await Promise.all(
+         items.map(async (item) => {
+            const rentedQuantity = await prisma.rental.aggregate({
+               where: {
+                  itemId: item.id,
+                  status: 'active',
+               },
+               _sum: { quantity: true },
+            });
+            const available = item.totalStock - (rentedQuantity._sum.quantity || 0);
+            return { ...item, available };
+         })
+      );
+
+      return NextResponse.json({ rentalItems });
    } catch (error) {
       console.error('Get rental items error:', error);
       return NextResponse.json(
@@ -33,22 +47,16 @@ export async function GET(request: NextRequest) {
 // POST /api/rental-items - 대여 물품 생성 (관리자만)
 export async function POST(request: NextRequest) {
    try {
-      const supabase = await createClient();
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
 
-      if (authError || !authUser) {
+      if (!user) {
          return NextResponse.json(
             { error: '인증되지 않은 사용자입니다.' },
             { status: 401 }
          );
       }
 
-      // 관리자 권한 확인
-      const user = await prisma.user.findUnique({
-         where: { id: authUser.id },
-      });
-
-      if (!user?.isAdmin) {
+      if (!user.isAdmin) {
          return NextResponse.json(
             { error: '관리자만 대여 물품을 생성할 수 있습니다.' },
             { status: 403 }
@@ -61,12 +69,14 @@ export async function POST(request: NextRequest) {
       const validatedData = createRentalItemSchema.parse(body);
       const { name, category, totalStock, emoji, description } = validatedData;
 
-      const item = await prisma.rentalItem.create({
+      const stockNum = typeof totalStock === 'number' ? totalStock : parseInt(totalStock);
+
+      const rentalItem = await prisma.rentalItem.create({
          data: {
             name,
             category,
-            totalStock: typeof totalStock === 'number' ? totalStock : parseInt(totalStock),
-            available: typeof totalStock === 'number' ? totalStock : parseInt(totalStock),
+            totalStock: stockNum,
+            available: stockNum,
             emoji: emoji || null,
             description: description || null,
             isActive: true,
@@ -75,12 +85,11 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
          message: '대여 물품이 생성되었습니다.',
-         item,
+         rentalItem: { ...rentalItem, available: stockNum },
       });
    } catch (error) {
       console.error('Create rental item error:', error);
 
-      // Zod 유효성 검사 에러
       if (error instanceof z.ZodError) {
          return NextResponse.json(
             { error: error.issues[0].message },

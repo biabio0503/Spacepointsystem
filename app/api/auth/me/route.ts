@@ -1,42 +1,28 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth-utils';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
    try {
-      const supabase = await createClient();
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-
-      if (authError || !authUser) {
-         return NextResponse.json(
-            { error: '인증되지 않은 사용자입니다.' },
-            { status: 401 }
-         );
-      }
-
-      // DB에서 사용자 정보 조회
-      const user = await prisma.user.findUnique({
-         where: { id: authUser.id },
-         include: {
-            pointHistory: {
-               orderBy: { date: 'desc' },
-               take: 20,
-            },
-            rentals: {
-               include: {
-                  item: true,
-               },
-               orderBy: { rentalDate: 'desc' },
-            },
-         },
-      });
+      const user = await getCurrentUser();
 
       if (!user) {
-         return NextResponse.json(
-            { error: '사용자 정보를 찾을 수 없습니다.' },
-            { status: 404 }
-         );
+         return NextResponse.json({ user: null });
       }
+
+      // 포인트 히스토리와 대여 내역 조회
+      const [pointHistory, rentals] = await Promise.all([
+         prisma.pointHistory.findMany({
+            where: { userId: user.id },
+            orderBy: { date: 'desc' },
+            take: 20,
+         }),
+         prisma.rental.findMany({
+            where: { userId: user.id },
+            orderBy: { rentalDate: 'desc' },
+            include: { item: true },
+         }),
+      ]);
 
       return NextResponse.json({
          user: {
@@ -48,8 +34,8 @@ export async function GET(request: NextRequest) {
             points: user.points,
             isAdmin: user.isAdmin,
             joinedAt: user.joinedAt,
-            pointHistory: user.pointHistory,
-            rentals: user.rentals,
+            pointHistory,
+            rentals,
          },
       });
    } catch (error) {

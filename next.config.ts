@@ -4,11 +4,16 @@ const nextConfig: NextConfig = {
    reactStrictMode: true,
    // 이미지 최적화 설정
    images: {
-      domains: [],
-   },
-   // 실험적 기능
-   experimental: {
-      optimizePackageImports: ['@mui/material', '@mui/icons-material'],
+      remotePatterns: [
+         {
+            protocol: 'https',
+            hostname: 'bvmecrfidkotjuqvojbr.supabase.co',
+         },
+         {
+            protocol: 'https',
+            hostname: 'supabase.co',
+         },
+      ],
    },
 };
 

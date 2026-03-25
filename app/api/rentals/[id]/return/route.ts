@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth-utils';
 
 // PATCH /api/rentals/[id]/return - 대여 반납 처리
 export async function PATCH(
@@ -9,22 +9,16 @@ export async function PATCH(
 ) {
    try {
       const { id } = await params;
-      const supabase = await createClient();
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
 
-      if (authError || !authUser) {
+      if (!user) {
          return NextResponse.json(
             { error: '인증되지 않은 사용자입니다.' },
             { status: 401 }
          );
       }
 
-      // 관리자 권한 확인
-      const user = await prisma.user.findUnique({
-         where: { id: authUser.id },
-      });
-
-      if (!user?.isAdmin) {
+      if (!user.isAdmin) {
          return NextResponse.json(
             { error: '관리자만 반납 처리를 할 수 있습니다.' },
             { status: 403 }
@@ -54,33 +48,27 @@ export async function PATCH(
       // 트랜잭션으로 반납 처리 및 재고 복구
       const updatedRental = await prisma.$transaction(async (tx) => {
          // 반납 처리
-         const updated = await tx.rental.update({
+         const result = await tx.rental.update({
             where: { id },
             data: {
                status: 'returned',
                returnDate: new Date(),
             },
             include: {
-               item: true,
                user: {
-                  select: {
-                     studentId: true,
-                     name: true,
-                     department: true,
-                  },
+                  select: { studentId: true, name: true, department: true },
                },
+               item: true,
             },
          });
 
          // 재고 복구
          await tx.rentalItem.update({
             where: { id: rental.itemId },
-            data: {
-               available: { increment: rental.quantity },
-            },
+            data: { available: { increment: rental.quantity } },
          });
 
-         return updated;
+         return result;
       });
 
       return NextResponse.json({
@@ -95,3 +83,6 @@ export async function PATCH(
       );
    }
 }
+
+// POST /api/rentals/[id]/return - PATCH와 동일
+export const POST = PATCH;

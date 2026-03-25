@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth-utils';
 import { createRentalSchema } from '@/lib/validations';
 import { z } from 'zod';
 
 // GET /api/rentals - 대여 내역 조회
 export async function GET(request: NextRequest) {
    try {
-      const supabase = await createClient();
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
 
-      if (authError || !authUser) {
+      if (!user) {
          return NextResponse.json(
             { error: '인증되지 않은 사용자입니다.' },
             { status: 401 }
@@ -18,39 +17,22 @@ export async function GET(request: NextRequest) {
       }
 
       const { searchParams } = new URL(request.url);
-      const status = searchParams.get('status');
+      const status = searchParams.get('status') as 'active' | 'returned' | null;
       const isAdmin = searchParams.get('admin') === 'true';
 
-      // 관리자인지 확인
-      const user = await prisma.user.findUnique({
-         where: { id: authUser.id },
-      });
-
-      const where: any = {};
-
-      // 관리자가 아니면 본인 대여 내역만 조회
-      if (!isAdmin || !user?.isAdmin) {
-         where.userId = authUser.id;
-      }
-
-      if (status) {
-         where.status = status;
-      }
-
       const rentals = await prisma.rental.findMany({
-         where,
+         where: {
+            // 관리자가 아니면 본인 대여 내역만 조회
+            ...(!isAdmin || !user.isAdmin ? { userId: user.id } : {}),
+            ...(status ? { status } : {}),
+         },
+         orderBy: { rentalDate: 'desc' },
          include: {
             user: {
-               select: {
-                  studentId: true,
-                  name: true,
-                  department: true,
-                  phone: true,
-               },
+               select: { studentId: true, name: true, department: true, phone: true },
             },
             item: true,
          },
-         orderBy: { rentalDate: 'desc' },
       });
 
       return NextResponse.json({ rentals });
@@ -66,10 +48,9 @@ export async function GET(request: NextRequest) {
 // POST /api/rentals - 대여 신청
 export async function POST(request: NextRequest) {
    try {
-      const supabase = await createClient();
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
 
-      if (authError || !authUser) {
+      if (!user) {
          return NextResponse.json(
             { error: '인증되지 않은 사용자입니다.' },
             { status: 401 }
@@ -103,9 +84,19 @@ export async function POST(request: NextRequest) {
 
       const quantityNum = typeof quantity === 'number' ? quantity : parseInt(quantity);
 
-      if (item.available < quantityNum) {
+      // 현재 available 계산
+      const rentedQuantity = await prisma.rental.aggregate({
+         where: {
+            itemId,
+            status: 'active',
+         },
+         _sum: { quantity: true },
+      });
+      const available = item.totalStock - (rentedQuantity._sum.quantity || 0);
+
+      if (available < quantityNum) {
          return NextResponse.json(
-            { error: `재고가 부족합니다. (현재 재고: ${item.available}개)` },
+            { error: `재고가 부족합니다. (현재 재고: ${available}개)` },
             { status: 400 }
          );
       }
@@ -115,32 +106,25 @@ export async function POST(request: NextRequest) {
          // 대여 생성
          const newRental = await tx.rental.create({
             data: {
-               userId: authUser.id,
+               userId: user.id,
                itemId,
                quantity: quantityNum,
-               rentalDate: new Date(),
                expectedReturnDate: new Date(expectedReturnDate),
-               status: 'active',
                notes: notes || null,
+               status: 'active',
             },
             include: {
-               item: true,
                user: {
-                  select: {
-                     studentId: true,
-                     name: true,
-                     department: true,
-                  },
+                  select: { studentId: true, name: true, department: true },
                },
+               item: true,
             },
          });
 
-         // 재고 차감
+         // 재고 감소
          await tx.rentalItem.update({
             where: { id: itemId },
-            data: {
-               available: { decrement: quantityNum },
-            },
+            data: { available: { decrement: quantityNum } },
          });
 
          return newRental;
@@ -153,7 +137,6 @@ export async function POST(request: NextRequest) {
    } catch (error) {
       console.error('Create rental error:', error);
 
-      // Zod 유효성 검사 에러
       if (error instanceof z.ZodError) {
          return NextResponse.json(
             { error: error.issues[0].message },

@@ -1,88 +1,105 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 import prisma from '@/lib/prisma';
+import { createToken, setAuthCookie } from '@/lib/auth-utils';
 
 export async function GET(request: NextRequest) {
    try {
-      const searchParams = request.nextUrl.searchParams;
+      const { searchParams } = new URL(request.url);
       const code = searchParams.get('code');
       const error = searchParams.get('error');
 
       if (error) {
-         return NextResponse.redirect(new URL(`/login?error=${error}`, request.url));
+         return NextResponse.redirect(
+            new URL(`/login?error=kakao_auth_failed&message=${encodeURIComponent('카카오 로그인이 취소되었습니다.')}`, request.url)
+         );
       }
 
       if (!code) {
-         return NextResponse.redirect(new URL('/login?error=no_code', request.url));
+         return NextResponse.redirect(
+            new URL('/login?error=no_code&message=' + encodeURIComponent('인증 코드가 없습니다.'), request.url)
+         );
       }
 
-      // 카카오 토큰 요청
+      // 1. Access Token 요청
+      const tokenParams: Record<string, string> = {
+         grant_type: 'authorization_code',
+         client_id: process.env.NEXT_PUBLIC_KAKAO_REST_API_KEY!,
+         redirect_uri: process.env.NEXT_PUBLIC_KAKAO_REDIRECT_URI!,
+         code,
+      };
+
+      if (process.env.KAKAO_CLIENT_SECRET) {
+         tokenParams.client_secret = process.env.KAKAO_CLIENT_SECRET;
+      }
+
       const tokenResponse = await fetch('https://kauth.kakao.com/oauth/token', {
          method: 'POST',
          headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
          },
-         body: new URLSearchParams({
-            grant_type: 'authorization_code',
-            client_id: process.env.NEXT_PUBLIC_KAKAO_REST_API_KEY!,
-            redirect_uri: process.env.NEXT_PUBLIC_KAKAO_REDIRECT_URI!,
-            code,
-         }),
+         body: new URLSearchParams(tokenParams),
       });
 
       if (!tokenResponse.ok) {
          const errorData = await tokenResponse.json();
-         console.error('Kakao token error:', errorData);
-         return NextResponse.redirect(new URL('/login?error=token_failed', request.url));
+         console.error('카카오 토큰 요청 실패:', errorData);
+         return NextResponse.redirect(
+            new URL('/login?error=token_failed&message=' + encodeURIComponent('카카오 인증에 실패했습니다.'), request.url)
+         );
       }
 
       const tokenData = await tokenResponse.json();
       const accessToken = tokenData.access_token;
 
-      // 카카오 사용자 정보 요청
-      const userResponse = await fetch('https://kapi.kakao.com/v2/user/me', {
+      // 2. 사용자 정보 요청
+      const userInfoResponse = await fetch('https://kapi.kakao.com/v2/user/me', {
          headers: {
             Authorization: `Bearer ${accessToken}`,
          },
       });
 
-      if (!userResponse.ok) {
-         return NextResponse.redirect(new URL('/login?error=user_info_failed', request.url));
+      if (!userInfoResponse.ok) {
+         console.error('카카오 사용자 정보 요청 실패');
+         return NextResponse.redirect(
+            new URL('/login?error=userinfo_failed&message=' + encodeURIComponent('사용자 정보를 가져올 수 없습니다.'), request.url)
+         );
       }
 
-      const kakaoUser = await userResponse.json();
-      const kakaoId = kakaoUser.id.toString();
+      const userInfo = await userInfoResponse.json();
+      const kakaoId = String(userInfo.id);
 
-      // DB에서 카카오 ID로 사용자 찾기
+      // 3. DB에서 카카오 ID로 사용자 조회
       const existingUser = await prisma.user.findFirst({
          where: { kakaoId },
       });
 
       if (existingUser) {
-         // 기존 사용자 - Supabase 로그인
-         const supabase = await createClient();
-         const { error: signInError } = await supabase.auth.signInWithPassword({
-            email: `${existingUser.studentId}@student.local`,
-            password: existingUser.studentId, // 카카오 로그인 사용자는 학번을 비밀번호로 사용
+         // 기존 사용자 - JWT 토큰 생성 및 쿠키 설정
+         const token = await createToken({
+            userId: existingUser.id,
+            studentId: existingUser.studentId,
+            isAdmin: existingUser.isAdmin,
          });
+         await setAuthCookie(token);
 
-         if (signInError) {
-            console.error('Supabase sign in error:', signInError);
-            return NextResponse.redirect(new URL('/login?error=auth_failed', request.url));
+         // 로그인 성공 - /home으로 리다이렉트
+         return NextResponse.redirect(new URL('/home', request.url));
+      } else {
+         // 신규 사용자 - 회원가입 페이지로 리다이렉트
+         const signupUrl = new URL('/signup/kakao', request.url);
+         signupUrl.searchParams.set('kakaoId', kakaoId);
+
+         // 카카오 프로필 정보가 있으면 전달
+         if (userInfo.kakao_account?.profile?.nickname) {
+            signupUrl.searchParams.set('nickname', userInfo.kakao_account.profile.nickname);
          }
 
-         // 로그인 성공
-         const redirectUrl = existingUser.isAdmin ? '/admin' : '/home';
-         return NextResponse.redirect(new URL(redirectUrl, request.url));
-      } else {
-         // 신규 사용자 - 학번 연동 페이지로 이동
-         const redirectUrl = new URL('/signup', request.url);
-         redirectUrl.searchParams.set('kakao_id', kakaoId);
-         redirectUrl.searchParams.set('kakao_name', kakaoUser.properties?.nickname || '');
-         return NextResponse.redirect(redirectUrl);
+         return NextResponse.redirect(signupUrl);
       }
    } catch (error) {
-      console.error('Kakao callback error:', error);
-      return NextResponse.redirect(new URL('/login?error=unknown', request.url));
+      console.error('카카오 로그인 처리 중 오류:', error);
+      return NextResponse.redirect(
+         new URL('/login?error=unknown&message=' + encodeURIComponent('로그인 처리 중 오류가 발생했습니다.'), request.url)
+      );
    }
 }
