@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth-utils';
+import { writeFile, unlink, mkdir } from 'fs/promises';
+import path from 'path';
+import { existsSync } from 'fs';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
 
 export async function POST(request: NextRequest) {
    try {
-      const supabase = await createClient();
-
-      // 인증 확인
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) {
+      const user = await getCurrentUser();
+      if (!user) {
          return NextResponse.json(
             { error: '인증이 필요합니다.' },
             { status: 401 }
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
 
       const formData = await request.formData();
       const file = formData.get('file') as File;
-      const bucketName = formData.get('bucket') as string || 'event-images'; // 기본값: event-images
+      const bucketName = formData.get('bucket') as string || 'event-images';
 
       if (!file) {
          return NextResponse.json(
@@ -59,31 +60,21 @@ export async function POST(request: NextRequest) {
       const fileExt = file.name.split('.').pop();
       const fileName = `${timestamp}_${randomStr}.${fileExt}`;
 
-      // 파일을 ArrayBuffer로 변환
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-
-      // Supabase Storage에 업로드
-      const { data, error } = await supabase.storage
-         .from(bucketName)
-         .upload(fileName, buffer, {
-            contentType: file.type,
-            cacheControl: '3600',
-            upsert: false,
-         });
-
-      if (error) {
-         console.error('Upload error:', error);
-         return NextResponse.json(
-            { error: `업로드 실패: ${error.message}` },
-            { status: 500 }
-         );
+      // 업로드 디렉토리 생성
+      const uploadPath = path.join(UPLOAD_DIR, bucketName);
+      if (!existsSync(uploadPath)) {
+         await mkdir(uploadPath, { recursive: true });
       }
 
+      // 파일을 ArrayBuffer로 변환 후 저장
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const filePath = path.join(uploadPath, fileName);
+
+      await writeFile(filePath, buffer);
+
       // 공개 URL 생성
-      const { data: { publicUrl } } = supabase.storage
-         .from(bucketName)
-         .getPublicUrl(fileName);
+      const publicUrl = `/uploads/${bucketName}/${fileName}`;
 
       return NextResponse.json({
          message: '파일이 성공적으로 업로드되었습니다.',
@@ -91,7 +82,6 @@ export async function POST(request: NextRequest) {
          fileName: fileName,
          bucket: bucketName,
       });
-
    } catch (error) {
       console.error('Image upload error:', error);
       return NextResponse.json(
@@ -104,11 +94,8 @@ export async function POST(request: NextRequest) {
 // 이미지 삭제
 export async function DELETE(request: NextRequest) {
    try {
-      const supabase = await createClient();
-
-      // 인증 확인
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) {
+      const user = await getCurrentUser();
+      if (!user) {
          return NextResponse.json(
             { error: '인증이 필요합니다.' },
             { status: 401 }
@@ -126,23 +113,18 @@ export async function DELETE(request: NextRequest) {
          );
       }
 
-      // Supabase Storage에서 삭제
-      const { error } = await supabase.storage
-         .from(bucketName)
-         .remove([fileName]);
+      // 파일 삭제
+      const filePath = path.join(UPLOAD_DIR, bucketName, fileName);
 
-      if (error) {
-         console.error('Delete error:', error);
-         return NextResponse.json(
-            { error: `삭제 실패: ${error.message}` },
-            { status: 500 }
-         );
+      try {
+         await unlink(filePath);
+      } catch {
+         // 파일이 없어도 성공으로 처리
       }
 
       return NextResponse.json({
          message: '파일이 성공적으로 삭제되었습니다.',
       });
-
    } catch (error) {
       console.error('Image delete error:', error);
       return NextResponse.json(

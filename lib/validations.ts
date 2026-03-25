@@ -8,6 +8,7 @@ export const signUpSchema = z.object({
    phone: z.string().min(10, '올바른 전화번호를 입력해주세요').max(15, '올바른 전화번호를 입력해주세요'),
    password: z.string().min(6, '비밀번호는 최소 6자 이상이어야 합니다').max(100, '비밀번호는 100자 이내로 입력해주세요'),
    referralCode: z.string().optional(),
+   membershipFeeStatus: z.enum(['paid', 'not_paid', 'unknown']).optional(),
 });
 
 export const loginSchema = z.object({
@@ -60,6 +61,7 @@ export const updateUserSchema = z.object({
    department: z.string().min(1).max(100).optional(),
    phone: z.string().min(10).max(15).optional(),
    isAdmin: z.boolean().optional(),
+   membershipFeeStatus: z.enum(['paid', 'not_paid', 'unknown']).optional(),
 });
 
 // 포인트 지급 스키마
@@ -67,3 +69,29 @@ export const addPointsSchema = z.object({
    points: z.number().int().or(z.string().transform(Number)),
    reason: z.string().min(1, '사유를 입력해주세요').max(200, '사유는 200자 이내로 입력해주세요'),
 });
+
+// ============================================================
+// 📚 예시: TODO 스키마
+// ============================================================
+// 1. 프론트엔드와 백엔드에서 동일한 스키마를 사용
+// 2. 자동으로 에러 메시지 생성
+// 3. TypeScript 타입 자동 추론 (z.infer<typeof createTodoSchema>)
+// ============================================================
+
+// TODO 생성 스키마
+export const createTodoSchema = z.object({
+   title: z
+      .string()
+      .min(1, '할 일을 입력해주세요')
+      .max(200, '200자 이내로 입력해주세요'),
+});
+
+// TODO 수정 스키마
+export const updateTodoSchema = z.object({
+   title: z.string().min(1).max(200).optional(),
+   completed: z.boolean().optional(),
+});
+
+// 타입 추출 (프론트엔드에서 사용)
+export type CreateTodoInput = z.infer<typeof createTodoSchema>;
+export type UpdateTodoInput = z.infer<typeof updateTodoSchema>;

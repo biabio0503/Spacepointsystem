@@ -14,11 +14,13 @@ export default function AdminMembersPage() {
   const [pointAmount, setPointAmount] = useState(10);
   const [pointReason, setPointReason] = useState('');
   const [sortBy, setSortBy] = useState<'points' | 'name' | 'joined'>('points');
+  const [membershipFilter, setMembershipFilter] = useState<'all' | 'paid' | 'not_paid' | 'unknown'>('all');
   const [editForm, setEditForm] = useState({
     name: '',
     department: '',
     phone: '',
     studentId: '',
+    membershipFeeStatus: 'unknown' as 'paid' | 'not_paid' | 'unknown',
   });
 
   useEffect(() => {
@@ -29,11 +31,16 @@ export default function AdminMembersPage() {
   // 자기 자신을 제외한 모든 사용자 (관리자 포함)
   const realUsers = users.filter(u => u.id !== currentUser?.id);
 
-  const filtered = realUsers.filter(u =>
-    u.name.includes(search) ||
-    u.studentId.includes(search) ||
-    u.department.includes(search)
-  );
+  const filtered = realUsers.filter(u => {
+    const matchesSearch = u.name.includes(search) ||
+      u.studentId.includes(search) ||
+      u.department.includes(search);
+
+    const matchesMembership = membershipFilter === 'all' ||
+      (u as any).membershipFeeStatus === membershipFilter;
+
+    return matchesSearch && matchesMembership;
+  });
 
   const sorted = [...filtered].sort((a, b) => {
     if (sortBy === 'points') return b.points - a.points;
@@ -55,7 +62,7 @@ export default function AdminMembersPage() {
     try {
       await updateUser(editingUser, editForm);
       setEditingUser(null);
-      setEditForm({ name: '', department: '', phone: '', studentId: '' });
+      setEditForm({ name: '', department: '', phone: '', studentId: '', membershipFeeStatus: 'unknown' });
     } catch (error) {
       console.error('Failed to update user:', error);
       alert('사용자 정보 수정에 실패했습니다.');
@@ -106,12 +113,20 @@ export default function AdminMembersPage() {
       department: user.department,
       phone: user.phone,
       studentId: user.studentId,
+      membershipFeeStatus: (user as any).membershipFeeStatus || 'unknown',
     });
     setEditingUser(userId);
   };
 
   const selectedUserData = selectedUser ? users.find(u => u.id === selectedUser) : null;
   const editingUserData = editingUser ? users.find(u => u.id === editingUser) : null;
+
+  // 자치회비 통계
+  const membershipStats = {
+    paid: realUsers.filter(u => (u as any).membershipFeeStatus === 'paid').length,
+    not_paid: realUsers.filter(u => (u as any).membershipFeeStatus === 'not_paid').length,
+    unknown: realUsers.filter(u => (u as any).membershipFeeStatus === 'unknown').length,
+  };
 
   return (
     <div className="px-5 py-5">
@@ -120,6 +135,31 @@ export default function AdminMembersPage() {
         <p style={{ fontSize: 13, color: '#6B7280' }}>
           총 {realUsers.length}명 (관리자 {realUsers.filter(u => u.isAdmin).length}명)
         </p>
+      </div>
+
+      {/* Membership Fee Stats */}
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="bg-white rounded-xl p-3 shadow-sm border-2" style={{ borderColor: '#ECFDF5' }}>
+          <div className="flex items-center gap-2 mb-1">
+            <span style={{ fontSize: 16 }}>✅</span>
+            <span style={{ fontSize: 11, color: '#10B981', fontWeight: 600 }}>납부</span>
+          </div>
+          <p style={{ fontSize: 18, fontWeight: 800, color: '#10B981' }}>{membershipStats.paid}명</p>
+        </div>
+        <div className="bg-white rounded-xl p-3 shadow-sm border-2" style={{ borderColor: '#FEF2F2' }}>
+          <div className="flex items-center gap-2 mb-1">
+            <span style={{ fontSize: 16 }}>❌</span>
+            <span style={{ fontSize: 11, color: '#EF4444', fontWeight: 600 }}>미납</span>
+          </div>
+          <p style={{ fontSize: 18, fontWeight: 800, color: '#EF4444' }}>{membershipStats.not_paid}명</p>
+        </div>
+        <div className="bg-white rounded-xl p-3 shadow-sm border-2" style={{ borderColor: '#FFFBEB' }}>
+          <div className="flex items-center gap-2 mb-1">
+            <span style={{ fontSize: 16 }}>❓</span>
+            <span style={{ fontSize: 11, color: '#F59E0B', fontWeight: 600 }}>모름</span>
+          </div>
+          <p style={{ fontSize: 18, fontWeight: 800, color: '#F59E0B' }}>{membershipStats.unknown}명</p>
+        </div>
       </div>
 
       {/* Search */}
@@ -136,7 +176,7 @@ export default function AdminMembersPage() {
       </div>
 
       {/* Sort */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-3">
         {[
           { key: 'points', label: '포인트순' },
           { key: 'name', label: '이름순' },
@@ -158,11 +198,42 @@ export default function AdminMembersPage() {
         ))}
       </div>
 
+      {/* Membership Fee Filter */}
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+        {[
+          { key: 'all', label: '전체', emoji: '👥' },
+          { key: 'paid', label: '납부', emoji: '✅' },
+          { key: 'not_paid', label: '미납', emoji: '❌' },
+          { key: 'unknown', label: '모름', emoji: '❓' },
+        ].map(f => (
+          <button
+            key={f.key}
+            onClick={() => setMembershipFilter(f.key as any)}
+            className="px-3 py-1.5 rounded-full text-xs transition-colors whitespace-nowrap"
+            style={{
+              background: membershipFilter === f.key ? '#7DC443' : 'white',
+              color: membershipFilter === f.key ? 'white' : '#6B7280',
+              fontWeight: 600,
+              border: `1px solid ${membershipFilter === f.key ? '#7DC443' : '#E5E7EB'}`,
+            }}
+          >
+            {f.emoji} {f.label}
+          </button>
+        ))}
+      </div>
+
       {/* User list */}
       <div className="space-y-2">
         {sorted.map((user, i) => {
           const grade = getGrade(user.id);
           const info = getGradeInfo(grade);
+          const membershipStatus = (user as any).membershipFeeStatus || 'unknown';
+          const membershipInfo = {
+            paid: { emoji: '✅', label: '납부', bg: '#ECFDF5', color: '#10B981' },
+            not_paid: { emoji: '❌', label: '미납', bg: '#FEF2F2', color: '#EF4444' },
+            unknown: { emoji: '❓', label: '모름', bg: '#FFFBEB', color: '#F59E0B' },
+          }[membershipStatus];
+
           return (
             <motion.div
               key={user.id}
@@ -195,6 +266,13 @@ export default function AdminMembersPage() {
                         style={{ background: info.bg, color: info.color, fontSize: 9 }}
                       >
                         {grade}
+                      </span>
+                      <span
+                        className="px-1.5 py-0.5 rounded-full text-xs font-bold"
+                        style={{ background: membershipInfo.bg, color: membershipInfo.color, fontSize: 9 }}
+                        title="자치회비 납부 여부"
+                      >
+                        {membershipInfo.emoji} {membershipInfo.label}
                       </span>
                       <span style={{ fontSize: 13, fontWeight: 700, color: '#1B2A5C' }}>{user.points}점</span>
                     </div>
@@ -439,6 +517,56 @@ export default function AdminMembersPage() {
                   className="w-full px-4 py-3 rounded-xl border outline-none"
                   style={{ borderColor: '#E5E7EB', background: '#F9F9F9', fontSize: 15 }}
                 />
+              </div>
+
+              <div>
+                <label className="block mb-2" style={{ fontSize: 13, color: '#555', fontWeight: 600 }}>
+                  자치회비 납부 여부
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditForm({ ...editForm, membershipFeeStatus: 'paid' })}
+                    className="flex-1 py-2.5 rounded-xl border-2 transition-all"
+                    style={{
+                      borderColor: editForm.membershipFeeStatus === 'paid' ? '#10B981' : '#E5E7EB',
+                      background: editForm.membershipFeeStatus === 'paid' ? '#ECFDF5' : '#F9F9F9',
+                      color: editForm.membershipFeeStatus === 'paid' ? '#10B981' : '#6B7280',
+                      fontSize: 13,
+                      fontWeight: editForm.membershipFeeStatus === 'paid' ? 700 : 500,
+                    }}
+                  >
+                    ✅ 납부
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditForm({ ...editForm, membershipFeeStatus: 'not_paid' })}
+                    className="flex-1 py-2.5 rounded-xl border-2 transition-all"
+                    style={{
+                      borderColor: editForm.membershipFeeStatus === 'not_paid' ? '#EF4444' : '#E5E7EB',
+                      background: editForm.membershipFeeStatus === 'not_paid' ? '#FEF2F2' : '#F9F9F9',
+                      color: editForm.membershipFeeStatus === 'not_paid' ? '#EF4444' : '#6B7280',
+                      fontSize: 13,
+                      fontWeight: editForm.membershipFeeStatus === 'not_paid' ? 700 : 500,
+                    }}
+                  >
+                    ❌ 미납
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditForm({ ...editForm, membershipFeeStatus: 'unknown' })}
+                    className="flex-1 py-2.5 rounded-xl border-2 transition-all"
+                    style={{
+                      borderColor: editForm.membershipFeeStatus === 'unknown' ? '#F59E0B' : '#E5E7EB',
+                      background: editForm.membershipFeeStatus === 'unknown' ? '#FFFBEB' : '#F9F9F9',
+                      color: editForm.membershipFeeStatus === 'unknown' ? '#F59E0B' : '#6B7280',
+                      fontSize: 13,
+                      fontWeight: editForm.membershipFeeStatus === 'unknown' ? 700 : 500,
+                    }}
+                  >
+                    ❓ 모름
+                  </button>
+                </div>
               </div>
             </div>
 

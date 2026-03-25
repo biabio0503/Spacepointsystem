@@ -22,6 +22,7 @@ export default function SignUpPage() {
     password: '',
     passwordConfirm: '',
     referralCode: '',
+    membershipFeeStatus: 'unknown' as 'paid' | 'not_paid' | 'unknown',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showDeptDropdown, setShowDeptDropdown] = useState(false);
@@ -131,6 +132,7 @@ export default function SignUpPage() {
           phone: form.phone,
           password: form.password,
           referralCode: form.referralCode || undefined,
+          membershipFeeStatus: form.membershipFeeStatus,
         }),
       });
 
@@ -518,6 +520,60 @@ export default function SignUpPage() {
                 style={{ borderColor: errors.phone ? '#EF4444' : '#E5E7EB', background: '#fff', fontSize: 15 }}
               />
               {errors.phone && <p className="mt-1" style={{ fontSize: 12, color: '#EF4444' }}>{errors.phone}</p>}
+            </div>
+
+            {/* Membership Fee Status */}
+            <div>
+              <label className="block mb-2.5" style={{ fontSize: 13, color: '#555', fontWeight: 600 }}>
+                자치회비 납부 여부
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm(p => ({ ...p, membershipFeeStatus: 'paid' }))}
+                  className="flex-1 py-3 rounded-xl border-2 transition-all"
+                  style={{
+                    borderColor: form.membershipFeeStatus === 'paid' ? '#10B981' : '#E5E7EB',
+                    background: form.membershipFeeStatus === 'paid' ? '#ECFDF5' : '#fff',
+                    color: form.membershipFeeStatus === 'paid' ? '#10B981' : '#6B7280',
+                    fontSize: 14,
+                    fontWeight: form.membershipFeeStatus === 'paid' ? 700 : 500,
+                  }}
+                >
+                  네 ✓
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm(p => ({ ...p, membershipFeeStatus: 'not_paid' }))}
+                  className="flex-1 py-3 rounded-xl border-2 transition-all"
+                  style={{
+                    borderColor: form.membershipFeeStatus === 'not_paid' ? '#EF4444' : '#E5E7EB',
+                    background: form.membershipFeeStatus === 'not_paid' ? '#FEF2F2' : '#fff',
+                    color: form.membershipFeeStatus === 'not_paid' ? '#EF4444' : '#6B7280',
+                    fontSize: 14,
+                    fontWeight: form.membershipFeeStatus === 'not_paid' ? 700 : 500,
+                  }}
+                >
+                  아니요 ✗
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm(p => ({ ...p, membershipFeeStatus: 'unknown' }))}
+                  className="flex-1 py-3 rounded-xl border-2 transition-all"
+                  style={{
+                    borderColor: form.membershipFeeStatus === 'unknown' ? '#F59E0B' : '#E5E7EB',
+                    background: form.membershipFeeStatus === 'unknown' ? '#FFFBEB' : '#fff',
+                    color: form.membershipFeeStatus === 'unknown' ? '#F59E0B' : '#6B7280',
+                    fontSize: 14,
+                    fontWeight: form.membershipFeeStatus === 'unknown' ? 700 : 500,
+                  }}
+                >
+                  모름 ?
+                </button>
+              </div>
+              <p className="mt-2" style={{ fontSize: 11, color: '#9CA3AF', lineHeight: '1.5' }}>
+                💡 자치회비 납부 여부에 따라 추가 혜택이 제공될 수 있습니다
+              </p>
             </div>
 
             <button

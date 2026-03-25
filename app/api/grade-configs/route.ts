@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth-utils';
 
 // GET /api/grade-configs - 등급 설정 조회 (누구나 가능)
 export async function GET() {
@@ -22,22 +22,16 @@ export async function GET() {
 // POST /api/grade-configs - 등급 설정 추가 (관리자만)
 export async function POST(request: NextRequest) {
    try {
-      const supabase = await createClient();
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
 
-      if (authError || !authUser) {
+      if (!user) {
          return NextResponse.json(
             { error: '인증되지 않은 사용자입니다.' },
             { status: 401 }
          );
       }
 
-      // 관리자 권한 확인
-      const admin = await prisma.user.findUnique({
-         where: { id: authUser.id },
-      });
-
-      if (!admin?.isAdmin) {
+      if (!user.isAdmin) {
          return NextResponse.json(
             { error: '관리자만 등급 설정을 추가할 수 있습니다.' },
             { status: 403 }

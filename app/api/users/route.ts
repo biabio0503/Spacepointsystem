@@ -1,26 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth-utils';
 
 // GET /api/users - 사용자 목록 조회 (관리자만)
 export async function GET(request: NextRequest) {
    try {
-      const supabase = await createClient();
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
 
-      if (authError || !authUser) {
+      if (!user) {
          return NextResponse.json(
             { error: '인증되지 않은 사용자입니다.' },
             { status: 401 }
          );
       }
 
-      // 관리자 권한 확인
-      const user = await prisma.user.findUnique({
-         where: { id: authUser.id },
-      });
-
-      if (!user?.isAdmin) {
+      if (!user.isAdmin) {
          return NextResponse.json(
             { error: '관리자만 사용자 목록을 조회할 수 있습니다.' },
             { status: 403 }
@@ -30,26 +24,18 @@ export async function GET(request: NextRequest) {
       const { searchParams } = new URL(request.url);
       const search = searchParams.get('search');
 
-      const where: any = {};
-      if (search) {
-         where.OR = [
-            { name: { contains: search } },
-            { studentId: { contains: search } },
-            { department: { contains: search } },
-         ];
-      }
-
       const users = await prisma.user.findMany({
-         where,
-         select: {
-            id: true,
-            studentId: true,
-            name: true,
-            department: true,
-            phone: true,
-            points: true,
-            isAdmin: true,
-            joinedAt: true,
+         where: search
+            ? {
+               OR: [
+                  { name: { contains: search, mode: 'insensitive' } },
+                  { studentId: { contains: search, mode: 'insensitive' } },
+                  { department: { contains: search, mode: 'insensitive' } },
+               ],
+            }
+            : undefined,
+         orderBy: { joinedAt: 'desc' },
+         include: {
             _count: {
                select: {
                   pointHistory: true,
@@ -57,10 +43,21 @@ export async function GET(request: NextRequest) {
                },
             },
          },
-         orderBy: { joinedAt: 'desc' },
       });
 
-      return NextResponse.json({ users });
+      const usersResponse = users.map((u) => ({
+         id: u.id,
+         studentId: u.studentId,
+         name: u.name,
+         department: u.department,
+         phone: u.phone,
+         points: u.points,
+         isAdmin: u.isAdmin,
+         joinedAt: u.joinedAt,
+         _count: u._count,
+      }));
+
+      return NextResponse.json({ users: usersResponse });
    } catch (error) {
       console.error('Get users error:', error);
       return NextResponse.json(

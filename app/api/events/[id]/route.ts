@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth-utils';
 import { updateEventSchema } from '@/lib/validations';
 import { z } from 'zod';
 
@@ -11,6 +11,7 @@ export async function GET(
 ) {
    try {
       const { id } = await params;
+
       const event = await prisma.event.findUnique({
          where: { id },
       });
@@ -39,22 +40,16 @@ export async function PATCH(
 ) {
    try {
       const { id } = await params;
-      const supabase = await createClient();
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
 
-      if (authError || !authUser) {
+      if (!user) {
          return NextResponse.json(
             { error: '인증되지 않은 사용자입니다.' },
             { status: 401 }
          );
       }
 
-      // 관리자 권한 확인
-      const user = await prisma.user.findUnique({
-         where: { id: authUser.id },
-      });
-
-      if (!user?.isAdmin) {
+      if (!user.isAdmin) {
          return NextResponse.json(
             { error: '관리자만 이벤트를 수정할 수 있습니다.' },
             { status: 403 }
@@ -79,7 +74,7 @@ export async function PATCH(
          isActive,
       } = validatedData;
 
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
       if (title !== undefined) updateData.title = title;
       if (location !== undefined) updateData.location = location;
       if (date !== undefined) updateData.date = new Date(date);
@@ -104,7 +99,6 @@ export async function PATCH(
    } catch (error) {
       console.error('Update event error:', error);
 
-      // Zod 유효성 검사 에러
       if (error instanceof z.ZodError) {
          return NextResponse.json(
             { error: error.issues[0].message },
@@ -126,22 +120,16 @@ export async function DELETE(
 ) {
    try {
       const { id } = await params;
-      const supabase = await createClient();
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
 
-      if (authError || !authUser) {
+      if (!user) {
          return NextResponse.json(
             { error: '인증되지 않은 사용자입니다.' },
             { status: 401 }
          );
       }
 
-      // 관리자 권한 확인
-      const user = await prisma.user.findUnique({
-         where: { id: authUser.id },
-      });
-
-      if (!user?.isAdmin) {
+      if (!user.isAdmin) {
          return NextResponse.json(
             { error: '관리자만 이벤트를 삭제할 수 있습니다.' },
             { status: 403 }

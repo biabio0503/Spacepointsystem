@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
-
-// 카카오 사용자의 일관된 패스워드 생성 (회원가입과 로그인에서 동일하게 사용)
-function generateKakaoPassword(kakaoId: string): string {
-   return `kakao_${kakaoId}_${process.env.KAKAO_CLIENT_SECRET}`;
-}
+import { createToken, setAuthCookie } from '@/lib/auth-utils';
 
 export async function GET(request: NextRequest) {
    try {
@@ -33,7 +28,6 @@ export async function GET(request: NextRequest) {
          code,
       };
 
-      // Client Secret이 있으면 추가 (보안 강화 설정 시 필수)
       if (process.env.KAKAO_CLIENT_SECRET) {
          tokenParams.client_secret = process.env.KAKAO_CLIENT_SECRET;
       }
@@ -75,31 +69,21 @@ export async function GET(request: NextRequest) {
       const kakaoId = String(userInfo.id);
 
       // 3. DB에서 카카오 ID로 사용자 조회
-      const existingUser = await prisma.user.findUnique({
+      const existingUser = await prisma.user.findFirst({
          where: { kakaoId },
       });
 
       if (existingUser) {
-         // 기존 사용자 - Supabase Auth 세션 생성
-         const supabase = await createClient();
-         const kakaoPassword = generateKakaoPassword(kakaoId);
-
-         // Supabase Auth로 로그인하여 세션 생성
-         const { error: signInError } = await supabase.auth.signInWithPassword({
-            email: `${existingUser.studentId}@student.local`,
-            password: kakaoPassword,
+         // 기존 사용자 - JWT 토큰 생성 및 쿠키 설정
+         const token = await createToken({
+            userId: existingUser.id,
+            studentId: existingUser.studentId,
+            isAdmin: existingUser.isAdmin,
          });
-
-         if (signInError) {
-            console.error('Supabase 로그인 실패:', signInError);
-            return NextResponse.redirect(
-               new URL('/login?error=session_failed&message=' + encodeURIComponent('세션 생성에 실패했습니다.'), request.url)
-            );
-         }
+         await setAuthCookie(token);
 
          // 로그인 성공 - /home으로 리다이렉트
-         const redirectUrl = new URL('/home', request.url);
-         return NextResponse.redirect(redirectUrl);
+         return NextResponse.redirect(new URL('/home', request.url));
       } else {
          // 신규 사용자 - 회원가입 페이지로 리다이렉트
          const signupUrl = new URL('/signup/kakao', request.url);

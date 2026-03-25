@@ -1,14 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth-utils';
 
 // GET /api/me/point-history - 현재 사용자의 포인트 내역 조회
-export async function GET(request: NextRequest) {
+export async function GET() {
    try {
-      const supabase = await createClient();
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
 
-      if (authError || !authUser) {
+      if (!user) {
          return NextResponse.json(
             { error: '인증되지 않은 사용자입니다.' },
             { status: 401 }
@@ -17,12 +16,8 @@ export async function GET(request: NextRequest) {
 
       // 현재 사용자의 포인트 내역 조회
       const pointHistory = await prisma.pointHistory.findMany({
-         where: {
-            userId: authUser.id,
-         },
-         orderBy: {
-            date: 'desc',
-         },
+         where: { userId: user.id },
+         orderBy: { date: 'desc' },
          select: {
             id: true,
             userId: true,
@@ -33,7 +28,6 @@ export async function GET(request: NextRequest) {
       });
 
       return NextResponse.json({ pointHistory });
-
    } catch (error) {
       console.error('Get point history error:', error);
       return NextResponse.json(

@@ -57,7 +57,7 @@ export default function AdminSettingsPage() {
       maxPoints: null as number | null,
       percentileMin: null as number | null,
       percentileMax: null as number | null,
-      emoji: '🌱',
+      emoji: '',
       color: '#10B981',
       bgColor: '#D1FAE5',
       benefit: '',

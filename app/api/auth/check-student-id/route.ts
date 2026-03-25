@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
       // 학번 중복 확인
       const existingUser = await prisma.user.findUnique({
          where: { studentId },
+         select: { id: true },
       });
 
       if (existingUser) {

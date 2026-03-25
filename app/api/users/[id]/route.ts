@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth-utils';
 import { updateUserSchema } from '@/lib/validations';
 import { z } from 'zod';
 
@@ -11,10 +11,9 @@ export async function GET(
 ) {
    try {
       const { id } = await params;
-      const supabase = await createClient();
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      const currentUser = await getCurrentUser();
 
-      if (authError || !authUser) {
+      if (!currentUser) {
          return NextResponse.json(
             { error: '인증되지 않은 사용자입니다.' },
             { status: 401 }
@@ -22,11 +21,7 @@ export async function GET(
       }
 
       // 본인이거나 관리자만 조회 가능
-      const requestingUser = await prisma.user.findUnique({
-         where: { id: authUser.id },
-      });
-
-      if (authUser.id !== id && !requestingUser?.isAdmin) {
+      if (currentUser.id !== id && !currentUser.isAdmin) {
          return NextResponse.json(
             { error: '권한이 없습니다.' },
             { status: 403 }
@@ -41,10 +36,8 @@ export async function GET(
                take: 50,
             },
             rentals: {
-               include: {
-                  item: true,
-               },
                orderBy: { rentalDate: 'desc' },
+               include: { item: true },
             },
          },
       });
@@ -56,7 +49,21 @@ export async function GET(
          );
       }
 
-      return NextResponse.json({ user });
+      return NextResponse.json({
+         user: {
+            id: user.id,
+            studentId: user.studentId,
+            name: user.name,
+            department: user.department,
+            phone: user.phone,
+            points: user.points,
+            isAdmin: user.isAdmin,
+            joinedAt: user.joinedAt,
+            membershipFeeStatus: user.membershipFeeStatus,
+            pointHistory: user.pointHistory,
+            rentals: user.rentals,
+         },
+      });
    } catch (error) {
       console.error('Get user error:', error);
       return NextResponse.json(
@@ -73,10 +80,9 @@ export async function PATCH(
 ) {
    try {
       const { id } = await params;
-      const supabase = await createClient();
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      const currentUser = await getCurrentUser();
 
-      if (authError || !authUser) {
+      if (!currentUser) {
          return NextResponse.json(
             { error: '인증되지 않은 사용자입니다.' },
             { status: 401 }
@@ -84,11 +90,7 @@ export async function PATCH(
       }
 
       // 본인이거나 관리자만 수정 가능
-      const requestingUser = await prisma.user.findUnique({
-         where: { id: authUser.id },
-      });
-
-      if (authUser.id !== id && !requestingUser?.isAdmin) {
+      if (currentUser.id !== id && !currentUser.isAdmin) {
          return NextResponse.json(
             { error: '권한이 없습니다.' },
             { status: 403 }
@@ -99,16 +101,21 @@ export async function PATCH(
 
       // Zod 유효성 검사
       const validatedData = updateUserSchema.parse(body);
-      const { name, department, phone, isAdmin } = validatedData;
+      const { name, department, phone, isAdmin, membershipFeeStatus } = validatedData;
 
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
       if (name !== undefined) updateData.name = name;
       if (department !== undefined) updateData.department = department;
       if (phone !== undefined) updateData.phone = phone;
 
       // 관리자 권한 변경은 관리자만 가능
-      if (isAdmin !== undefined && requestingUser?.isAdmin) {
+      if (isAdmin !== undefined && currentUser.isAdmin) {
          updateData.isAdmin = isAdmin;
+      }
+
+      // 자치회비 납부 여부 변경은 관리자만 가능
+      if (membershipFeeStatus !== undefined && currentUser.isAdmin) {
+         updateData.membershipFeeStatus = membershipFeeStatus;
       }
 
       const user = await prisma.user.update({
@@ -118,12 +125,20 @@ export async function PATCH(
 
       return NextResponse.json({
          message: '사용자 정보가 수정되었습니다.',
-         user,
+         user: {
+            id: user.id,
+            studentId: user.studentId,
+            name: user.name,
+            department: user.department,
+            phone: user.phone,
+            points: user.points,
+            isAdmin: user.isAdmin,
+            membershipFeeStatus: user.membershipFeeStatus,
+         },
       });
    } catch (error) {
       console.error('Update user error:', error);
 
-      // Zod 유효성 검사 에러
       if (error instanceof z.ZodError) {
          return NextResponse.json(
             { error: error.issues[0].message },
@@ -145,22 +160,16 @@ export async function DELETE(
 ) {
    try {
       const { id } = await params;
-      const supabase = await createClient();
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      const currentUser = await getCurrentUser();
 
-      if (authError || !authUser) {
+      if (!currentUser) {
          return NextResponse.json(
             { error: '인증되지 않은 사용자입니다.' },
             { status: 401 }
          );
       }
 
-      // 관리자 권한 확인
-      const admin = await prisma.user.findUnique({
-         where: { id: authUser.id },
-      });
-
-      if (!admin?.isAdmin) {
+      if (!currentUser.isAdmin) {
          return NextResponse.json(
             { error: '관리자만 사용자를 삭제할 수 있습니다.' },
             { status: 403 }
@@ -168,7 +177,7 @@ export async function DELETE(
       }
 
       // 자기 자신은 삭제 불가
-      if (authUser.id === id) {
+      if (currentUser.id === id) {
          return NextResponse.json(
             { error: '자기 자신은 삭제할 수 없습니다.' },
             { status: 400 }
@@ -186,34 +195,10 @@ export async function DELETE(
          );
       }
 
-      // 트랜잭션으로 관련 데이터 모두 삭제
-      await prisma.$transaction(async (tx) => {
-         // 포인트 히스토리 삭제
-         await tx.pointHistory.deleteMany({
-            where: { userId: id },
-         });
-
-         // 대여 내역 삭제
-         await tx.rental.deleteMany({
-            where: { userId: id },
-         });
-
-         // 사용자 삭제
-         await tx.user.delete({
-            where: { id },
-         });
+      // Prisma의 onDelete: Cascade로 관련 데이터 자동 삭제
+      await prisma.user.delete({
+         where: { id },
       });
-
-      // Supabase Auth에서도 사용자 삭제 (관리자 권한 필요)
-      try {
-         const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(id);
-         if (deleteAuthError) {
-            console.error('Supabase auth delete error:', deleteAuthError);
-         }
-      } catch (authDeleteError) {
-         console.error('Failed to delete from auth:', authDeleteError);
-         // Auth 삭제가 실패해도 계속 진행 (DB에서는 이미 삭제됨)
-      }
 
       return NextResponse.json({
          message: '사용자가 삭제되었습니다.',

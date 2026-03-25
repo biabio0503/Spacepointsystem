@@ -1,138 +1,184 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DIRECT_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
 }
 
+// 사용자
 model User {
-  id           String         @id @default(uuid())
-  studentId    String         @unique
-  name         String
-  department   String
-  phone        String
-  referralCode String?
-  points       Int            @default(0)
-  joinedAt     DateTime       @default(now())
-  isAdmin      Boolean        @default(false)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  kakaoId      String?        @unique
-  role         String         @default("USER")
+  id                  String           @id @default(uuid())
+  studentId           String           @unique @map("student_id")
+  passwordHash        String           @map("password_hash")
+  name                String
+  department          String
+  phone               String
+  referralCode        String?          @map("referral_code")
+  points              Int              @default(0)
+  membershipFeeStatus MembershipStatus @default(unknown) @map("membership_fee_status")
+  joinedAt            DateTime         @default(now()) @map("joined_at")
+  isAdmin             Boolean          @default(false) @map("is_admin")
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime         @updatedAt @map("updated_at")
+  kakaoId             String?          @map("kakao_id")
+  role                String           @default("user")
+
   pointHistory PointHistory[]
   rentals      Rental[]
+  todos        Todo[]  // TODO 관계 추가
 
-  @@index([studentId])
-  @@index([kakaoId])
   @@map("users")
 }
 
+enum MembershipStatus {
+  paid
+  not_paid
+  unknown
+}
+
+// 이벤트
 model Event {
-  id           String    @id @default(uuid())
+  id           String   @id @default(uuid())
   title        String
   location     String
   date         DateTime
-  endDate      DateTime?
+  endDate      DateTime? @map("end_date")
   content      String
-  imageUrls    String[]  @default([])
-  instagramUrl String?
-  points       Int
-  postDate     DateTime
-  postEndDate  DateTime
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  imageUrls    String[] @default([]) @map("image_urls")
+  instagramUrl String?  @map("instagram_url")
+  points       Int      @default(0)
+  postDate     DateTime @map("post_date")
+  postEndDate  DateTime @map("post_end_date")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  @@index([isActive, postDate])
   @@map("events")
 }
 
+// 포인트 히스토리
 model PointHistory {
   id        String   @id @default(uuid())
-  userId    String
+  userId    String   @map("user_id")
   points    Int
   reason    String
   date      DateTime @default(now())
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
 
-  @@index([userId, date])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@map("point_history")
 }
 
+// 대여 물품
 model RentalItem {
   id          String   @id @default(uuid())
   name        String
   category    String
-  totalStock  Int
-  available   Int      // deprecated: 동적 계산으로 대체, DB에는 유지
-  imageUrl    String?
+  totalStock  Int      @map("total_stock")
+  available   Int
+  imageUrl    String?  @map("image_url")
   emoji       String?
   description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  rentals     Rental[]
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  @@index([isActive, category])
+  rentals Rental[]
+
   @@map("rental_items")
 }
 
+// 대여
 model Rental {
-  id                 String     @id @default(uuid())
-  userId             String
-  itemId             String
-  quantity           Int        @default(1)
-  rentalDate         DateTime
-  returnDate         DateTime?
-  expectedReturnDate DateTime
-  status             String     @default("active")
+  id                 String       @id @default(uuid())
+  userId             String       @map("user_id")
+  itemId             String       @map("item_id")
+  quantity           Int
+  rentalDate         DateTime     @default(now()) @map("rental_date")
+  returnDate         DateTime?    @map("return_date")
+  expectedReturnDate DateTime     @map("expected_return_date")
+  status             RentalStatus @default(active)
   notes              String?
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
-  item               RentalItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  user               User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
 
-  @@index([userId, status])
-  @@index([itemId, status])
-  @@index([rentalDate])
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item RentalItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
   @@map("rentals")
 }
 
+enum RentalStatus {
+  active
+  returned
+}
+
+// 설정
 model Settings {
-  id              String   @id @default(uuid())
-  organizationName String  @default("학생복지위원회")
-  logoMain        String?  // 메인 로고
-  primaryColor    String   @default("#1B2A5C")
-  secondaryColor  String   @default("#7DC443")
-  contactPhone    String   @default("010-0000-0000")  // 학번/학과 변경 문의 전화번호
-  contactPerson   String   @default("담당자")           // 담당자 이름 및 직책
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id               String   @id @default(uuid())
+  organizationName String   @map("organization_name")
+  logoMain         String?  @map("logo_main")
+  primaryColor     String   @default("#3B82F6") @map("primary_color")
+  secondaryColor   String   @default("#10B981") @map("secondary_color")
+  contactPhone     String   @default("") @map("contact_phone")
+  contactPerson    String   @default("") @map("contact_person")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   @@map("settings")
 }
 
+// 등급 설정
 model GradeConfig {
-  id             String   @id @default(uuid())
-  name           String   // 등급 이름 (예: "새싹", "꽃봉오리", ...)
-  type           String   @default("ABSOLUTE_POINTS") // "ABSOLUTE_POINTS" | "PERCENTILE"
-  minPoints      Int      // 최소 포인트 (ABSOLUTE_POINTS 모드)
-  maxPoints      Int?     // 최대 포인트 (null이면 무제한)
-  percentileMin  Float?   // 최소 퍼센트 (PERCENTILE 모드, 예: 0, 10.5)
-  percentileMax  Float?   // 최대 퍼센트 (예: 10, 30)
-  emoji          String   // 이모지
-  badgeImage     String?  // 배지 이미지 URL
-  color          String   // 색상
-  bgColor        String   // 배경색
-  benefit        String   @default("")  // 등급별 혜택 설명
-  orderIndex     Int      // 순서 (낮을수록 낮은 등급)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String    @id @default(uuid())
+  name          String
+  type          GradeType @default(ABSOLUTE_POINTS)
+  minPoints     Int       @default(0) @map("min_points")
+  maxPoints     Int?      @map("max_points")
+  percentileMin Float?    @map("percentile_min")
+  percentileMax Float?    @map("percentile_max")
+  emoji         String
+  badgeImage    String?   @map("badge_image")
+  color         String    @default("#000000")
+  bgColor       String    @default("#FFFFFF") @map("bg_color")
+  benefit       String    @default("")
+  orderIndex    Int       @default(0) @map("order_index")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  @@index([orderIndex])
   @@map("grade_configs")
+}
+
+enum GradeType {
+  ABSOLUTE_POINTS
+  PERCENTILE
+}
+
+// ============================================================
+// 📚 예시: TODO 모델
+// ============================================================
+// 1. 모델 정의: 테이블 구조를 정의
+// 2. @id: 기본 키
+// 3. @default: 기본값
+// 4. @map: DB 컬럼명 (snake_case)
+// 5. @@map: DB 테이블명
+// 6. 관계: User와 1:N 관계 (한 유저가 여러 TODO를 가짐)
+// ============================================================
+model Todo {
+  id          String   @id @default(uuid())
+  title       String                          // 할 일 제목
+  completed   Boolean  @default(false)        // 완료 여부
+  userId      String   @map("user_id")        // 작성자 ID
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // 관계 설정: User 모델과 연결
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("todos")  // DB 테이블명
 }

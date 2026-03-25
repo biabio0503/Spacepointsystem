@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth-utils';
 
 // POST /api/me/claim-points - 로그인 포인트 받기 (본인만)
 export async function POST(request: NextRequest) {
    try {
-      const supabase = await createClient();
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
 
-      if (authError || !authUser) {
+      if (!user) {
          return NextResponse.json(
             { error: '인증되지 않은 사용자입니다.' },
             { status: 401 }
@@ -26,16 +25,19 @@ export async function POST(request: NextRequest) {
          );
       }
 
-      // 오늘 이미 받았는지 확인 (선택사항)
+      // 오늘 이미 받았는지 확인
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
 
       const existingClaim = await prisma.pointHistory.findFirst({
          where: {
-            userId: authUser.id,
-            reason: '웹 로그인 포인트',
-            createdAt: {
+            userId: user.id,
+            reason,
+            date: {
                gte: today,
+               lt: tomorrow,
             },
          },
       });
@@ -48,35 +50,32 @@ export async function POST(request: NextRequest) {
       }
 
       // 트랜잭션으로 포인트 지급 및 내역 생성
-      const result = await prisma.$transaction(async (tx) => {
-         // 포인트 지급
-         const user = await tx.user.update({
-            where: { id: authUser.id },
+      const [updatedUser, history] = await prisma.$transaction([
+         prisma.user.update({
+            where: { id: user.id },
+            data: { points: { increment: points } },
+         }),
+         prisma.pointHistory.create({
             data: {
-               points: { increment: points },
-            },
-         });
-
-         // 포인트 내역 생성
-         const history = await tx.pointHistory.create({
-            data: {
-               userId: authUser.id,
-               points: points,
+               userId: user.id,
+               points,
                reason,
             },
-         });
-
-         return { user, history };
-      });
+         }),
+      ]);
 
       return NextResponse.json({
          message: '포인트가 지급되었습니다.',
-         user: result.user,
-         history: result.history,
+         user: {
+            id: updatedUser.id,
+            studentId: updatedUser.studentId,
+            name: updatedUser.name,
+            points: updatedUser.points,
+         },
+         history,
       });
    } catch (error) {
       console.error('Claim points error:', error);
-
       return NextResponse.json(
          { error: '포인트 지급 중 오류가 발생했습니다.' },
          { status: 500 }

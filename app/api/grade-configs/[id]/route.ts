@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth-utils';
 
 // PATCH /api/grade-configs/[id] - 등급 설정 수정 (관리자만)
 export async function PATCH(
@@ -9,22 +9,16 @@ export async function PATCH(
 ) {
    try {
       const { id } = await params;
-      const supabase = await createClient();
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
 
-      if (authError || !authUser) {
+      if (!user) {
          return NextResponse.json(
             { error: '인증되지 않은 사용자입니다.' },
             { status: 401 }
          );
       }
 
-      // 관리자 권한 확인
-      const admin = await prisma.user.findUnique({
-         where: { id: authUser.id },
-      });
-
-      if (!admin?.isAdmin) {
+      if (!user.isAdmin) {
          return NextResponse.json(
             { error: '관리자만 등급 설정을 수정할 수 있습니다.' },
             { status: 403 }
@@ -34,7 +28,7 @@ export async function PATCH(
       const body = await request.json();
       const { name, type, minPoints, maxPoints, percentileMin, percentileMax, emoji, badgeImage, color, bgColor, orderIndex, benefit } = body;
 
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
       if (name !== undefined) updateData.name = name;
       if (type !== undefined) updateData.type = type;
       if (minPoints !== undefined) updateData.minPoints = minPoints;
@@ -73,22 +67,16 @@ export async function DELETE(
 ) {
    try {
       const { id } = await params;
-      const supabase = await createClient();
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
 
-      if (authError || !authUser) {
+      if (!user) {
          return NextResponse.json(
             { error: '인증되지 않은 사용자입니다.' },
             { status: 401 }
          );
       }
 
-      // 관리자 권한 확인
-      const admin = await prisma.user.findUnique({
-         where: { id: authUser.id },
-      });
-
-      if (!admin?.isAdmin) {
+      if (!user.isAdmin) {
          return NextResponse.json(
             { error: '관리자만 등급 설정을 삭제할 수 있습니다.' },
             { status: 403 }

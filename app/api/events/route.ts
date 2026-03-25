@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth-utils';
 import { createEventSchema } from '@/lib/validations';
 import { z } from 'zod';
 
@@ -12,22 +12,20 @@ export async function GET(request: NextRequest) {
 
       const now = new Date();
 
-      const whereCondition = onlyActive
-         ? {
-            isActive: true,
-            postDate: { lte: now },
-            postEndDate: { gte: now },
-         }
-         : undefined;
-
       const events = await prisma.event.findMany({
-         where: whereCondition,
+         where: onlyActive
+            ? {
+               isActive: true,
+               postDate: { lte: now },
+               postEndDate: { gte: now },
+            }
+            : undefined,
          orderBy: { date: 'desc' },
       });
 
       return NextResponse.json({ events });
    } catch (error) {
-      console.error('❌ Get events error:', error);
+      console.error('Get events error:', error);
       return NextResponse.json(
          { error: '이벤트 조회 중 오류가 발생했습니다.' },
          { status: 500 }
@@ -38,22 +36,16 @@ export async function GET(request: NextRequest) {
 // POST /api/events - 이벤트 생성 (관리자만)
 export async function POST(request: NextRequest) {
    try {
-      const supabase = await createClient();
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
 
-      if (authError || !authUser) {
+      if (!user) {
          return NextResponse.json(
             { error: '인증되지 않은 사용자입니다.' },
             { status: 401 }
          );
       }
 
-      // 관리자 권한 확인
-      const user = await prisma.user.findUnique({
-         where: { id: authUser.id },
-      });
-
-      if (!user?.isAdmin) {
+      if (!user.isAdmin) {
          return NextResponse.json(
             { error: '관리자만 이벤트를 생성할 수 있습니다.' },
             { status: 403 }
@@ -100,7 +92,6 @@ export async function POST(request: NextRequest) {
    } catch (error) {
       console.error('Create event error:', error);
 
-      // Zod 유효성 검사 에러
       if (error instanceof z.ZodError) {
          return NextResponse.json(
             { error: error.issues[0].message },

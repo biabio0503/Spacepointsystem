@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
-
-// 카카오 사용자의 일관된 패스워드 생성 (callback과 동일하게 사용)
-function generateKakaoPassword(kakaoId: string): string {
-   return `kakao_${kakaoId}_${process.env.KAKAO_CLIENT_SECRET}`;
-}
+import { hashPassword, createToken, setAuthCookie } from '@/lib/auth-utils';
 
 export async function POST(request: NextRequest) {
    try {
@@ -49,7 +44,7 @@ export async function POST(request: NextRequest) {
       }
 
       // 이미 존재하는 카카오 ID인지 확인
-      const existingKakaoUser = await prisma.user.findUnique({
+      const existingKakaoUser = await prisma.user.findFirst({
          where: { kakaoId },
       });
 
@@ -60,70 +55,43 @@ export async function POST(request: NextRequest) {
          );
       }
 
-      // Supabase Auth에 사용자 생성 (카카오 연동 사용자는 일관된 패스워드 사용)
-      const supabase = await createClient();
-      const kakaoPassword = generateKakaoPassword(kakaoId);
-
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-         email: `${studentId}@student.local`,
-         password: kakaoPassword,
-         options: {
-            data: {
-               student_id: studentId,
-               name,
-               department,
-               kakao_id: kakaoId,
-            },
-         },
-      });
-
-      if (authError) {
-         return NextResponse.json(
-            { error: authError.message },
-            { status: 400 }
-         );
-      }
-
-      if (!authData.user) {
-         return NextResponse.json(
-            { error: '사용자 생성에 실패했습니다.' },
-            { status: 500 }
-         );
-      }
+      // 카카오 사용자의 패스워드 해시 생성 (카카오 ID 기반)
+      const passwordHash = await hashPassword(`kakao_${kakaoId}_${process.env.KAKAO_CLIENT_SECRET || 'secret'}`);
 
       // 추천인 코드 처리
       let initialPoints = 0;
       if (referralCode) {
-         const referrer = await prisma.user.findFirst({
+         const referrer = await prisma.user.findUnique({
             where: { studentId: referralCode },
          });
 
          if (referrer) {
             // 추천인에게 포인트 지급
-            await prisma.user.update({
-               where: { id: referrer.id },
-               data: { points: { increment: 100 } },
-            });
-
-            await prisma.pointHistory.create({
-               data: {
-                  userId: referrer.id,
-                  points: 100,
-                  reason: `${name}님 추천`,
-               },
-            });
+            await prisma.$transaction([
+               prisma.user.update({
+                  where: { id: referrer.id },
+                  data: { points: { increment: 100 } },
+               }),
+               prisma.pointHistory.create({
+                  data: {
+                     userId: referrer.id,
+                     points: 100,
+                     reason: `${name}님 추천`,
+                  },
+               }),
+            ]);
 
             // 신규 가입자에게도 포인트 부여
             initialPoints = 50;
          }
       }
 
-      // Prisma DB에 사용자 정보 저장
+      // DB에 사용자 정보 저장
       const newUser = await prisma.user.create({
          data: {
-            id: authData.user.id,
             kakaoId,
             studentId,
+            passwordHash,
             name,
             department,
             phone,
@@ -143,8 +111,15 @@ export async function POST(request: NextRequest) {
          });
       }
 
-      // 세션 쿠키 설정
-      const response = NextResponse.json(
+      // JWT 토큰 생성 및 쿠키 설정
+      const token = await createToken({
+         userId: newUser.id,
+         studentId: newUser.studentId,
+         isAdmin: newUser.isAdmin,
+      });
+      await setAuthCookie(token);
+
+      return NextResponse.json(
          {
             success: true,
             user: {
@@ -156,20 +131,6 @@ export async function POST(request: NextRequest) {
          },
          { status: 201 }
       );
-
-      response.cookies.set('user', JSON.stringify({
-         id: newUser.id,
-         studentId: newUser.studentId,
-         name: newUser.name,
-         isAdmin: newUser.isAdmin,
-      }), {
-         httpOnly: true,
-         secure: process.env.NODE_ENV === 'production',
-         sameSite: 'lax',
-         maxAge: 60 * 60 * 24 * 7, // 7일
-      });
-
-      return response;
    } catch (error) {
       console.error('카카오 회원가입 오류:', error);
       return NextResponse.json(
