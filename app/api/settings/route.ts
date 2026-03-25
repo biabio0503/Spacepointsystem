@@ -17,6 +17,7 @@ export async function GET() {
                secondaryColor: '#7DC443',
                contactPhone: '010-0000-0000',
                contactPerson: '담당자',
+               instagram: "https://instagram.com/42welfare_st",
             },
          });
       }
@@ -51,7 +52,7 @@ export async function PATCH(request: NextRequest) {
       }
 
       const body = await request.json();
-      const { organizationName, logoMain, primaryColor, secondaryColor, contactPhone, contactPerson } = body;
+      const { organizationName, logoMain, primaryColor, secondaryColor, contactPhone, contactPerson, instagram } = body;
 
       // 기존 설정 찾기
       let settings = await prisma.settings.findFirst();
@@ -66,6 +67,7 @@ export async function PATCH(request: NextRequest) {
                secondaryColor: secondaryColor || '#7DC443',
                contactPhone: contactPhone || '010-0000-0000',
                contactPerson: contactPerson || '담당자',
+               instagram: instagram || "https://instagram.com/42welfare_st",
             },
          });
       } else {
@@ -77,7 +79,7 @@ export async function PATCH(request: NextRequest) {
          if (secondaryColor !== undefined) updateData.secondaryColor = secondaryColor;
          if (contactPhone !== undefined) updateData.contactPhone = contactPhone;
          if (contactPerson !== undefined) updateData.contactPerson = contactPerson;
-
+         if (instagram !== undefined) updateData.instagram = instagram;
          settings = await prisma.settings.update({
             where: { id: settings.id },
             data: updateData,

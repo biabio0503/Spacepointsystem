@@ -3,14 +3,29 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
-import { Bell, Settings, ChevronRight, Instagram, QrCode, Gift, Star, TrendingUp } from 'lucide-react';
-import { useStore, type Grade } from '@/store/useStore';
+import { Settings, ChevronRight, Instagram, QrCode, Gift, Star, TrendingUp } from 'lucide-react';
+import { useStore } from '@/store/useStore';
 import { GradeBadge, GradeIcon } from '@/app/_components/shared/GradeBadge';
 import { BottomNav } from '@/app/_components/shared/BottomNav';
-import { meAPI } from '@/lib/api-client';
+import { meAPI, gradeConfigsAPI } from '@/lib/api-client';
+
+interface GradeConfig {
+  id: string;
+  name: string;
+  emoji: string;
+  color: string;
+  bgColor: string;
+  benefit: string;
+  minPoints: number;
+  maxPoints: number | null;
+  percentileMin: number | null;
+  percentileMax: number | null;
+  type: 'ABSOLUTE_POINTS' | 'PERCENTILE';
+  orderIndex: number;
+}
 
 interface GradeData {
-  grade: Grade;
+  grade: string;
   rank: number | null;
   totalEligible: number;
   topPercent: number | null;
@@ -22,9 +37,12 @@ export default function HomePage() {
   const router = useRouter();
   const { currentUser, events, getGradeInfo, addPoints, refreshEvents } = useStore();
   const [gradeData, setGradeData] = useState<GradeData | null>(null);
+  const [gradeConfigs, setGradeConfigs] = useState<GradeConfig[]>([]);
   const [pointClicked, setPointClicked] = useState(false);
   const [pointError, setPointError] = useState<string | null>(null);
 
+  const settings = useStore(state => state.settings);
+  // 로그인 여부 확인 후 리다이렉트
   useEffect(() => {
     if (!currentUser) {
       router.replace('/login');
@@ -36,13 +54,20 @@ export default function HomePage() {
     if (currentUser) {
       meAPI.getGrade()
         .then(setGradeData)
-        .catch(err => console.error('Failed to load grade:', err));
+        .catch(err => console.error('등급 정보를 불러오는데 실패했습니다:', err));
     }
   }, [currentUser]);
 
   // 이벤트 목록 로드
   useEffect(() => {
     refreshEvents();
+  }, [refreshEvents]);
+
+  // 등급별 혜택 로드
+  useEffect(() => {
+    gradeConfigsAPI.getAll()
+      .then(data => setGradeConfigs(data.gradeConfigs))
+      .catch(err => console.error('등급 설정을 불러오는데 실패했습니다:', err));
   }, []);
 
   if (!currentUser || !gradeData) {
@@ -51,7 +76,7 @@ export default function HomePage() {
 
   const gradeInfo = getGradeInfo(gradeData.grade);
 
-  // Upcoming events (active, sorted by date)
+  // 다가오는 이벤트만 필터링하여 최대 3개까지 보여줌
   const upcomingEvents = (events || [])
     .filter(e => e.isActive)
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
@@ -77,12 +102,13 @@ export default function HomePage() {
   };
 
   const getDday = (dateStr: string) => {
-    const diff = Math.ceil((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    const diff = Math.ceil((new Date(dateStr).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
     if (diff === 0) return 'D-Day';
     if (diff < 0) return `D+${Math.abs(diff)}`;
     return `D-${diff}`;
   };
 
+  const instagramUrl = settings?.instagram || 'https://instagram.com/42welfare_st';
   return (
     <div className="min-h-screen pb-24" style={{ background: '#EEF1F8' }}>
       {/* Header */}
@@ -118,9 +144,6 @@ export default function HomePage() {
             </h1>
           </div>
           <div className="flex items-center gap-3">
-            <button className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center">
-              <Bell size={18} color="white" />
-            </button>
             <button
               onClick={() => router.push('/settings')}
               className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center"
@@ -154,25 +177,30 @@ export default function HomePage() {
           </div>
 
           {/* Progress bar to next grade */}
-          {gradeData.nextGrade ? (
-            <div>
-              <div className="flex justify-between mb-1.5">
-                <span style={{ fontSize: 11, color: '#9CA3AF' }}>다음 등급까지</span>
-                <span style={{ fontSize: 11, color: gradeInfo.color, fontWeight: 600 }}>
-                  {getGradeInfo(gradeData.nextGrade.next as Grade).emoji} {gradeData.nextGrade.next}까지 {gradeData.nextGrade.need}점 더!
-                </span>
+          {gradeData.nextGrade ? (() => {
+            const nextGradeConfig = gradeConfigs.find(g => g.name === gradeData.nextGrade?.next);
+            const nextEmoji = nextGradeConfig?.emoji || '⭐';
+            const nextColor = nextGradeConfig?.color || gradeInfo.color;
+            return (
+              <div>
+                <div className="flex justify-between mb-1.5">
+                  <span style={{ fontSize: 11, color: '#9CA3AF' }}>다음 등급까지</span>
+                  <span style={{ fontSize: 11, color: nextColor, fontWeight: 600 }}>
+                    {nextEmoji} {gradeData.nextGrade.next}까지 {gradeData.nextGrade.need}점 더!
+                  </span>
+                </div>
+                <div className="h-2 rounded-full overflow-hidden" style={{ background: '#F3F4F6' }}>
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(100, (currentUser.points / (currentUser.points + gradeData.nextGrade.need)) * 100)}%` }}
+                    transition={{ delay: 0.5, duration: 1, ease: 'easeOut' }}
+                    className="h-full rounded-full"
+                    style={{ background: `linear-gradient(90deg, ${gradeInfo.color}, ${gradeInfo.color}aa)` }}
+                  />
+                </div>
               </div>
-              <div className="h-2 rounded-full overflow-hidden" style={{ background: '#F3F4F6' }}>
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, (currentUser.points / (currentUser.points + gradeData.nextGrade.need)) * 100)}%` }}
-                  transition={{ delay: 0.5, duration: 1, ease: 'easeOut' }}
-                  className="h-full rounded-full"
-                  style={{ background: `linear-gradient(90deg, ${gradeInfo.color}, ${gradeInfo.color}aa)` }}
-                />
-              </div>
-            </div>
-          ) : (
+            );
+          })() : (
             <div className="flex items-center gap-2" style={{ color: '#F5C518' }}>
               <span style={{ fontSize: 13, fontWeight: 600 }}>🏆 최고 등급 달성!</span>
             </div>
@@ -185,9 +213,9 @@ export default function HomePage() {
         <div className="grid grid-cols-4 gap-3">
           {[
             { icon: QrCode, label: 'QR 적립', color: '#1B2A5C', bg: '#EEF1FC', action: () => router.push('/qr') },
-            { icon: Gift, label: '포인트 받기', color: '#7DC443', bg: '#EFF8E6', action: handleGetPoints },
-            { icon: Star, label: '마이페이지', color: '#F5C518', bg: '#FFF8E1', action: () => router.push('/mypage') },
+            { icon: Gift, label: '출석 포인트', color: '#7DC443', bg: '#EFF8E6', action: handleGetPoints },
             { icon: TrendingUp, label: '사업 보기', color: '#4BA3E3', bg: '#EBF4FF', action: () => router.push('/events') },
+            { icon: Star, label: '마이페이지', color: '#F5C518', bg: '#FFF8E1', action: () => router.push('/mypage') },
           ].map(({ icon: Icon, label, color, bg, action }) => (
             <motion.button
               key={label}
@@ -306,28 +334,31 @@ export default function HomePage() {
       <div className="px-5 mt-6">
         <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1F2937', marginBottom: 12 }}>등급별 혜택 안내</h2>
         <div className="bg-white rounded-2xl p-4 shadow-sm">
-          {[
-            { grade: '별', emoji: '⭐', color: '#8B9BC8', benefit: '포인트 적립 시작', points: '0~9점' },
-            { grade: '행성', emoji: '🪐', color: '#4BA3E3', benefit: '기본 혜택 제공', points: '10점~' },
-            { grade: '로켓', emoji: '🚀', color: '#7DC443', benefit: '간식 2종 + 응모권', points: '상위 60~20%' },
-            { grade: 'UFO', emoji: '🛸', color: '#F5C518', benefit: '최고 혜택 + 특별 경품', points: '상위 20%' },
-          ].map((item, i) => (
+          {gradeConfigs.map((grade, i) => (
             <div
-              key={item.grade}
-              className={`flex items-center gap-3 py-2.5 ${i < 3 ? 'border-b border-gray-50' : ''}`}
+              key={grade.id}
+              className={`flex items-center gap-3 py-2.5 ${i < gradeConfigs.length - 1 ? 'border-b border-gray-50' : ''}`}
             >
-              <span style={{ fontSize: 22, minWidth: 28 }}>{item.emoji}</span>
+              <span style={{ fontSize: 22, minWidth: 28 }}>{grade.emoji}</span>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <span style={{ fontSize: 13, fontWeight: 700, color: item.color }}>{item.grade}</span>
-                  <span style={{ fontSize: 11, color: '#9CA3AF' }}>{item.points}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: grade.color }}>{grade.name}</span>
+                  <span style={{ fontSize: 11, color: '#9CA3AF' }}>
+                    {grade.type === 'ABSOLUTE_POINTS'
+                      ? `${grade.minPoints}${grade.maxPoints ? `~${grade.maxPoints}` : '+'}점`
+                      : grade.percentileMin && grade.percentileMax
+                        ? `상위 ${100 - grade.percentileMax}~${100 - grade.percentileMin}%`
+                        : grade.percentileMax
+                          ? `상위 ${100 - grade.percentileMax}%`
+                          : '정보 없음'}
+                  </span>
                 </div>
-                <p style={{ fontSize: 12, color: '#6B7280' }}>{item.benefit}</p>
+                <p style={{ fontSize: 12, color: '#6B7280' }}>{grade.benefit}</p>
               </div>
-              {gradeData.grade === item.grade && (
+              {gradeData?.grade === grade.name && (
                 <span
                   className="px-2 py-0.5 rounded-full text-xs"
-                  style={{ background: item.color + '20', color: item.color, fontWeight: 600 }}
+                  style={{ background: grade.color + '20', color: grade.color, fontWeight: 600 }}
                 >
                   현재
                 </span>
@@ -339,9 +370,9 @@ export default function HomePage() {
 
       {/* SNS */}
       <div className="px-5 mt-6 mb-4">
-        <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1F2937', marginBottom: 12 }}>SPACE 학복위 SNS</h2>
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1F2937', marginBottom: 12 }}>학복위 SNS</h2>
         <a
-          href="https://instagram.com/seoultech_welfare"
+          href={instagramUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-sm"
@@ -354,7 +385,9 @@ export default function HomePage() {
           </div>
           <div>
             <p style={{ fontSize: 14, fontWeight: 700, color: '#1F2937' }}>인스타그램</p>
-            <p style={{ fontSize: 12, color: '#9CA3AF' }}>@seoultech_welfare</p>
+            <p style={{ fontSize: 12, color: '#9CA3AF' }}>
+              {settings?.instagram ? settings.instagram.replace(/https?:\/\/(www\.)?instagram\.com\//, '') : '로드중'}
+            </p>
           </div>
           <ChevronRight size={16} color="#9CA3AF" className="ml-auto" />
         </a>

@@ -3,6 +3,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  engineType = "binary"
 }
 
 datasource db {
@@ -29,7 +30,6 @@ model User {
 
   pointHistory PointHistory[]
   rentals      Rental[]
-  todos        Todo[]  // TODO 관계 추가
 
   @@map("users")
 }
@@ -123,6 +123,7 @@ model Settings {
   id               String   @id @default(uuid())
   organizationName String   @map("organization_name")
   logoMain         String?  @map("logo_main")
+  instagram        String?
   primaryColor     String   @default("#3B82F6") @map("primary_color")
   secondaryColor   String   @default("#10B981") @map("secondary_color")
   contactPhone     String   @default("") @map("contact_phone")
@@ -157,28 +158,4 @@ model GradeConfig {
 enum GradeType {
   ABSOLUTE_POINTS
   PERCENTILE
-}
-
-// ============================================================
-// 📚 예시: TODO 모델
-// ============================================================
-// 1. 모델 정의: 테이블 구조를 정의
-// 2. @id: 기본 키
-// 3. @default: 기본값
-// 4. @map: DB 컬럼명 (snake_case)
-// 5. @@map: DB 테이블명
-// 6. 관계: User와 1:N 관계 (한 유저가 여러 TODO를 가짐)
-// ============================================================
-model Todo {
-  id          String   @id @default(uuid())
-  title       String                          // 할 일 제목
-  completed   Boolean  @default(false)        // 완료 여부
-  userId      String   @map("user_id")        // 작성자 ID
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  // 관계 설정: User 모델과 연결
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("todos")  // DB 테이블명
 }

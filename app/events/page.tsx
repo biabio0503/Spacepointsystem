@@ -142,7 +142,7 @@ export default function EventsPage() {
 
   useEffect(() => {
     refreshEvents();
-  }, []);
+  }, [refreshEvents]);
 
   console.log('📅 이벤트 페이지 - 전체 이벤트:', events);
 
@@ -162,7 +162,7 @@ export default function EventsPage() {
   };
 
   const getDday = (dateStr: string) => {
-    const diff = Math.ceil((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    const diff = Math.ceil((new Date(dateStr).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
     if (diff === 0) return 'D-Day';
     if (diff < 0) return `D+${Math.abs(diff)}`;
     return `D-${diff}`;

@@ -13,7 +13,7 @@ export default function AdminEventsPage() {
 
   useEffect(() => {
     refreshEvents();
-  }, []);
+  }, [refreshEvents]);
 
   const sortedEvents = [...events].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 

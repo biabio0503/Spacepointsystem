@@ -70,6 +70,7 @@ export interface Settings {
    id: string;
    organizationName: string;
    logoMain: string | null;
+   instagram: string | null;
    primaryColor: string;
    secondaryColor: string;
    contactPhone: string;

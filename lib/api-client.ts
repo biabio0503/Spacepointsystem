@@ -150,7 +150,7 @@ export const meAPI = {
 
    getGrade: () =>
       fetchAPI<{
-         grade: '별' | '행성' | '로켓' | 'UFO';
+         grade: string;
          rank: number | null;
          totalEligible: number;
          topPercent: number | null;

@@ -14,7 +14,7 @@ export default function AdminHomePage() {
     refreshUsers();
     refreshEvents();
     refreshPointHistory();
-  }, []);
+  }, [refreshUsers, refreshEvents, refreshPointHistory]);
 
   const realUsers = users.filter(u => !u.isAdmin);
   const totalPoints = realUsers.reduce((sum, u) => sum + u.points, 0);

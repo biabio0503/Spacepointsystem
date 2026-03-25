@@ -4,54 +4,67 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { useStore } from '@/store/useStore';
-import { authService } from '@/lib/auth';
-
-const logoImg = '/logos/logo.png';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { loginFormSchema, type LoginFormInput } from '@/lib/validations';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useStore();
-  const [studentId, setStudentId] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [showStudentIdInput, setShowStudentIdInput] = useState(false);
+  const { login, settings } = useStore();
 
-  // URL에서 에러 파라미터 확인
-  useEffect(() => {
+  const logoUrl = settings?.logoMain || '/logo.png';
+  const [error, setError] = useState(() => {
+    if (typeof window === 'undefined') return '';
     const params = new URLSearchParams(window.location.search);
     const urlError = params.get('error');
     const urlMessage = params.get('message');
 
     if (urlMessage) {
-      setError(decodeURIComponent(urlMessage));
-      window.history.replaceState({}, '', '/login');
-    } else if (urlError) {
+      return decodeURIComponent(urlMessage);
+    }
+
+    if (urlError) {
       const errorMessages: Record<string, string> = {
-        'kakao_disabled': '카카오 로그인이 비활성화되었습니다. 학번으로 로그인해주세요.',
-        'unknown': '알 수 없는 오류가 발생했습니다.',
+        kakao_disabled: '카카오 로그인이 비활성화되었습니다. 학번으로 로그인해주세요.',
+        unknown: '알 수 없는 오류가 발생했습니다.',
       };
-      setError(errorMessages[urlError] || '로그인 중 오류가 발생했습니다.');
-      // URL에서 에러 파라미터 제거
+      return errorMessages[urlError] || '로그인 중 오류가 발생했습니다.';
+    }
+
+    return '';
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [showStudentIdInput, setShowStudentIdInput] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm<LoginFormInput>({
+    resolver: zodResolver(loginFormSchema),
+    defaultValues: {
+      studentId: '',
+      password: '',
+    },
+  });
+
+  // URL에서 에러 파라미터 제거
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlError = params.get('error');
+    const urlMessage = params.get('message');
+
+    if (urlMessage || urlError) {
       window.history.replaceState({}, '', '/login');
     }
   }, []);
 
-  const handleStudentLogin = async () => {
-    if (!studentId.trim()) {
-      setError('학번을 입력해주세요.');
-      return;
-    }
-    if (!password.trim()) {
-      setError('비밀번호를 입력해주세요.');
-      return;
-    }
-
+  const handleStudentLogin = async (values: LoginFormInput) => {
     setIsLoading(true);
     setError('');
 
     try {
-      const user = await login(studentId, password);
+      const user = await login(values.studentId, values.password);
 
       if (!user) {
         setError('로그인에 실패했습니다.');
@@ -65,24 +78,13 @@ export default function LoginPage() {
       } else {
         router.replace('/home');
       }
-    } catch (err) {
+    } catch {
       setError('로그인 중 오류가 발생했습니다.');
       setIsLoading(false);
     }
   };
 
-  const handleDemo = async (id: string) => {
-    setIsLoading(true);
-    // 데모 계정 비밀번호는 '123456'으로 가정
-    const password = 'demo123';
-    try {
-      await login(id, password);
-      router.replace(id === 'admin' ? '/admin' : '/home');
-    } catch (err) {
-      setError('데모 로그인에 실패했습니다.');
-      setIsLoading(false);
-    }
-  };
+
 
   const handleKakaoLogin = () => {
     const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_KAKAO_REST_API_KEY}&redirect_uri=${process.env.NEXT_PUBLIC_KAKAO_REDIRECT_URI}&response_type=code`;
@@ -124,7 +126,7 @@ export default function LoginPage() {
             transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
           >
             <img
-              src={logoImg}
+              src={logoUrl}
               alt="SPACE logo"
               style={{ width: 96, height: 96, borderRadius: '50%' }}
             />
@@ -187,24 +189,30 @@ export default function LoginPage() {
               </button>
             </>
           ) : (
-            <div className="space-y-3">
+            <form onSubmit={handleSubmit(handleStudentLogin)} className="space-y-3">
               <div>
                 <label className="block mb-1.5" style={{ fontSize: 13, color: '#666', fontWeight: 500 }}>
                   학번 (8자리)
                 </label>
                 <input
                   type="text"
-                  value={studentId}
-                  onChange={e => { setStudentId(e.target.value); setError(''); }}
+                  {...register('studentId', {
+                    onChange: e => {
+                      const onlyDigits = e.target.value.replace(/\D/g, '').slice(0, 8);
+                      setValue('studentId', onlyDigits, { shouldValidate: true });
+                      setError('');
+                    },
+                  })}
                   placeholder="ex) 20240001"
                   maxLength={8}
                   className="w-full px-4 py-3 rounded-xl border outline-none transition-colors"
                   style={{
-                    borderColor: error ? '#EF4444' : '#E5E7EB',
+                    borderColor: errors.studentId ? '#EF4444' : '#E5E7EB',
                     fontSize: 15,
                     background: '#F9F9F9',
                   }}
                 />
+                {errors.studentId && <p className="mt-1" style={{ fontSize: 12, color: '#EF4444' }}>{errors.studentId.message}</p>}
                 <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>
                   💡 학번으로 로그인할 수 있습니다
                 </p>
@@ -215,21 +223,22 @@ export default function LoginPage() {
                 </label>
                 <input
                   type="password"
-                  value={password}
-                  onChange={e => { setPassword(e.target.value); setError(''); }}
+                  {...register('password', {
+                    onChange: () => setError(''),
+                  })}
                   placeholder="비밀번호를 입력하세요"
                   className="w-full px-4 py-3 rounded-xl border outline-none transition-colors"
                   style={{
-                    borderColor: error ? '#EF4444' : '#E5E7EB',
+                    borderColor: errors.password ? '#EF4444' : '#E5E7EB',
                     fontSize: 15,
                     background: '#F9F9F9',
                   }}
-                  onKeyDown={e => e.key === 'Enter' && handleStudentLogin()}
                 />
+                {errors.password && <p className="mt-1" style={{ fontSize: 12, color: '#EF4444' }}>{errors.password.message}</p>}
                 {error && <p className="mt-1" style={{ fontSize: 12, color: '#EF4444' }}>{error}</p>}
               </div>
               <button
-                onClick={handleStudentLogin}
+                type="submit"
                 disabled={isLoading}
                 className="w-full py-3.5 rounded-xl text-white transition-opacity active:opacity-80"
                 style={{ background: 'linear-gradient(135deg, #1B2A5C, #2E4A9A)', fontWeight: 700, fontSize: 15 }}
@@ -250,29 +259,8 @@ export default function LoginPage() {
               >
                 뒤로 가기
               </button>
-            </div>
+            </form>
           )}
-
-          {/* Demo accounts */}
-          <div className="mt-6 pt-5 border-t border-gray-100">
-            <p className="text-center mb-3" style={{ fontSize: 12, color: '#9CA3AF' }}>데모 계정으로 체험하기</p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleDemo('20240001')}
-                className="flex-1 py-2 rounded-lg text-xs transition-colors"
-                style={{ background: '#EEF1FC', color: '#1B2A5C', fontWeight: 600 }}
-              >
-                🚀 일반 유저
-              </button>
-              <button
-                onClick={() => handleDemo('admin')}
-                className="flex-1 py-2 rounded-lg text-xs transition-colors"
-                style={{ background: '#EEF1FC', color: '#1B2A5C', fontWeight: 600 }}
-              >
-                🔧 관리자
-              </button>
-            </div>
-          </div>
         </motion.div>
       </div>
     </div>

@@ -3,26 +3,39 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
 import type { RentalItem } from '@/store/useStore';
+import { useForm, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Edit2, Trash2, Package, X, Save } from 'lucide-react';
+import { adminRentalItemFormSchema, type AdminRentalItemFormInput } from '@/lib/validations';
 
 export default function AdminRentalItemsPage() {
   const { rentalItems, rentals, addRentalItem, updateRentalItem, deleteRentalItem, refreshRentalItems, refreshRentals } = useStore();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<RentalItem | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    category: '',
-    emoji: '',
-    totalStock: 1,
-    description: '',
+  const {
+    reset,
+    control,
+    setValue,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<AdminRentalItemFormInput>({
+    resolver: zodResolver(adminRentalItemFormSchema),
+    defaultValues: {
+      name: '',
+      category: '',
+      emoji: '',
+      totalStock: 1,
+      description: '',
+    },
   });
+  const formData = useWatch({ control });
   const [isNewCategory, setIsNewCategory] = useState(false);
 
   useEffect(() => {
     refreshRentalItems();
     refreshRentals();
-  }, []);
+  }, [refreshRentalItems, refreshRentals]);
 
   // rentalItems가 undefined일 수 있으므로 안전하게 처리
   const items = rentalItems || [];
@@ -46,7 +59,7 @@ export default function AdminRentalItemsPage() {
   const popularEmojis = ['📦', '💳', '🛏️', '🏕️', '🔋', '🔌', '📷', '🤳', '🌀', '🔊', '🧮', '👆', '🖱️', '🧤', '⚽', '☂️', '📱', '💻', '🎒', '📚'];
 
   const resetForm = () => {
-    setFormData({
+    reset({
       name: '',
       category: '',
       emoji: '',
@@ -57,13 +70,11 @@ export default function AdminRentalItemsPage() {
     setIsNewCategory(false);
   };
 
-  const handleAdd = async () => {
-    if (!formData.name || !formData.category) return;
-
+  const onAdd = async (values: AdminRentalItemFormInput) => {
     await addRentalItem({
-      ...formData,
-      available: formData.totalStock, // 초기 대여 가능 수량은 총 재고와 동일
-      emoji: formData.emoji || undefined,
+      ...values,
+      available: values.totalStock,
+      emoji: values.emoji || undefined,
       isActive: true,
     });
 
@@ -73,7 +84,7 @@ export default function AdminRentalItemsPage() {
 
   const handleEdit = (item: RentalItem) => {
     setEditingItem(item);
-    setFormData({
+    reset({
       name: item.name,
       category: item.category,
       emoji: item.emoji || '',
@@ -85,16 +96,16 @@ export default function AdminRentalItemsPage() {
     setShowAddDialog(true);
   };
 
-  const handleUpdate = async () => {
-    if (!editingItem || !formData.name || !formData.category) return;
+  const onUpdate = async (values: AdminRentalItemFormInput) => {
+    if (!editingItem) return;
 
     // 총 재고가 변경된 경우 available 재계산
-    const newAvailable = calculateAvailable(editingItem.id, formData.totalStock);
+    const newAvailable = calculateAvailable(editingItem.id, values.totalStock);
 
     await updateRentalItem(editingItem.id, {
-      ...formData,
+      ...values,
       available: newAvailable,
-      emoji: formData.emoji || undefined,
+      emoji: values.emoji || undefined,
     });
 
     setShowAddDialog(false);
@@ -293,10 +304,11 @@ export default function AdminRentalItemsPage() {
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    onChange={e => setValue('name', e.target.value, { shouldValidate: true })}
                     placeholder="예: 보조배터리"
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-blue-500"
                   />
+                  {errors.name && <p className="mt-1 text-xs" style={{ color: '#EF4444' }}>{errors.name.message}</p>}
                 </div>
 
                 <div>
@@ -312,9 +324,9 @@ export default function AdminRentalItemsPage() {
                         onChange={e => {
                           if (e.target.value === '__new__') {
                             setIsNewCategory(true);
-                            setFormData({ ...formData, category: '' });
+                            setValue('category', '', { shouldValidate: true });
                           } else {
-                            setFormData({ ...formData, category: e.target.value });
+                            setValue('category', e.target.value, { shouldValidate: true });
                           }
                         }}
                         className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-blue-500 bg-white"
@@ -334,8 +346,8 @@ export default function AdminRentalItemsPage() {
                       <input
                         type="text"
                         value={formData.category}
-                        onChange={e => setFormData({ ...formData, category: e.target.value })}
-                        placeholder="새 카테고0리 입력 (예: 전자기기)"
+                        onChange={e => setValue('category', e.target.value, { shouldValidate: true })}
+                        placeholder="새 카테고리 입력 (예: 전자기기)"
                         className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-blue-500"
                       />
                       {existingCategories.length > 0 && (
@@ -343,7 +355,7 @@ export default function AdminRentalItemsPage() {
                           type="button"
                           onClick={() => {
                             setIsNewCategory(false);
-                            setFormData({ ...formData, category: '' });
+                            setValue('category', '', { shouldValidate: true });
                           }}
                           className="mt-2 text-sm text-blue-600 hover:underline"
                         >
@@ -363,7 +375,7 @@ export default function AdminRentalItemsPage() {
                       <button
                         key={emoji}
                         type="button"
-                        onClick={() => setFormData({ ...formData, emoji })}
+                        onClick={() => setValue('emoji', emoji, { shouldValidate: true })}
                         className="flex-shrink-0 w-12 h-12 rounded-lg border-2 flex items-center justify-center text-2xl transition-all hover:bg-gray-50"
                         style={{
                           borderColor: formData.emoji === emoji ? '#1B2A5C' : '#E5E7EB',
@@ -377,11 +389,12 @@ export default function AdminRentalItemsPage() {
                   <input
                     type="text"
                     value={formData.emoji}
-                    onChange={e => setFormData({ ...formData, emoji: e.target.value })}
+                    onChange={e => setValue('emoji', e.target.value, { shouldValidate: true })}
                     placeholder="또는 직접 입력"
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-blue-500"
                     maxLength={4}
                   />
+                  {errors.emoji && <p className="mt-1 text-xs" style={{ color: '#EF4444' }}>{errors.emoji.message}</p>}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -393,12 +406,10 @@ export default function AdminRentalItemsPage() {
                       type="number"
                       min="1"
                       value={formData.totalStock}
-                      onChange={e => setFormData({
-                        ...formData,
-                        totalStock: Math.max(1, Number(e.target.value)),
-                      })}
+                      onChange={e => setValue('totalStock', Math.max(1, Number(e.target.value)), { shouldValidate: true })}
                       className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-blue-500"
                     />
+                    {errors.totalStock && <p className="mt-1 text-xs" style={{ color: '#EF4444' }}>{errors.totalStock.message}</p>}
                   </div>
 
                   <div>
@@ -428,12 +439,14 @@ export default function AdminRentalItemsPage() {
                   </label>
                   <textarea
                     value={formData.description}
-                    onChange={e => setFormData({ ...formData, description: e.target.value })}
+                    onChange={e => setValue('description', e.target.value, { shouldValidate: true })}
                     placeholder="물품에 대한 설명을 입력하세요"
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-blue-500 resize-none"
                     rows={3}
                   />
+                  {errors.description && <p className="mt-1 text-xs" style={{ color: '#EF4444' }}>{errors.description.message}</p>}
                 </div>
+                {errors.category && <p className="mt-1 text-xs" style={{ color: '#EF4444' }}>{errors.category.message}</p>}
               </div>
 
               <div className="flex gap-2 mt-6">
@@ -447,8 +460,8 @@ export default function AdminRentalItemsPage() {
                   취소
                 </button>
                 <button
-                  onClick={editingItem ? handleUpdate : handleAdd}
-                  disabled={!formData.name || !formData.category}
+                  onClick={handleSubmit(editingItem ? onUpdate : onAdd)}
+                  disabled={!formData.name?.trim() || !formData.category?.trim()}
                   className="flex-1 py-3 rounded-xl text-white font-bold transition-opacity active:opacity-80 disabled:opacity-50 flex items-center justify-center gap-2"
                   style={{ background: 'linear-gradient(135deg, #1B2A5C, #2E4A9A)' }}
                 >

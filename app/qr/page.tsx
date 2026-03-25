@@ -25,7 +25,7 @@ export default function QRPage() {
   const [gradeData, setGradeData] = useState<GradeData | null>(null);
   const [scanned, setScanned] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [qrKey, setQrKey] = useState(Date.now());
+  const [qrKey, setQrKey] = useState(() => new Date().getTime());
 
   useEffect(() => {
     if (!currentUser) {

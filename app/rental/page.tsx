@@ -23,7 +23,7 @@ export default function RentalPage() {
     if (currentUser) {
       refreshRentals();
     }
-  }, [currentUser]);
+  }, [currentUser, refreshRentalItems, refreshRentals]);
 
   const categories = ['전체', ...Array.from(new Set((rentalItems || []).map(item => item.category)))];
   const filteredItems = selectedCategory === '전체'

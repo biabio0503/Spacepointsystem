@@ -7,10 +7,7 @@ export async function GET() {
       const user = await getCurrentUser();
 
       if (!user) {
-         return NextResponse.json(
-            { error: '인증되지 않은 사용자입니다.' },
-            { status: 401 }
-         );
+         return NextResponse.json({ user: null });
       }
 
       // 포인트 히스토리와 대여 내역 조회

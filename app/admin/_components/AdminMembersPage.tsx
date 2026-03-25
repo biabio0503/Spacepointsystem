@@ -26,7 +26,7 @@ export default function AdminMembersPage() {
   useEffect(() => {
     refreshUsers();
     refreshPointHistory();
-  }, []);
+  }, [refreshUsers, refreshPointHistory]);
 
   // 자기 자신을 제외한 모든 사용자 (관리자 포함)
   const realUsers = users.filter(u => u.id !== currentUser?.id);

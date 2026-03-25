@@ -7,9 +7,14 @@ import { useStore } from '@/store/useStore';
 
 export default function LoadingPage() {
   const router = useRouter();
-  const { currentUser, finishLoading } = useStore();
+  const { currentUser, settings, isLoading, finishLoading } = useStore();
+
+  const logoUrl = settings?.logoMain || '/logo.png';
 
   useEffect(() => {
+    // settings가 로드될 때까지 기다림
+    if (isLoading) return;
+
     const timer = setTimeout(() => {
       finishLoading();
       if (currentUser) {
@@ -19,7 +24,7 @@ export default function LoadingPage() {
       }
     }, 2500);
     return () => clearTimeout(timer);
-  }, [currentUser, router, finishLoading]);
+  }, [currentUser, router, finishLoading, isLoading]);
 
   return (
     <div
@@ -64,8 +69,8 @@ export default function LoadingPage() {
         ))}
       </div>
 
+      {/* 로고 띄우기 */}
       <div className="relative flex flex-col items-center gap-6">
-        {/* UFO Logo */}
         <motion.div
           initial={{ scale: 0, rotate: -20 }}
           animate={{ scale: 1, rotate: 0 }}
@@ -77,8 +82,8 @@ export default function LoadingPage() {
             transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
           >
             <img
-              src="/logos/logo.png"
-              alt="SPACE logo"
+              src={logoUrl}
+              alt="ST Welafare logo"
               style={{ width: 110, height: 110, borderRadius: '50%' }}
             />
           </motion.div>
@@ -106,7 +111,7 @@ export default function LoadingPage() {
           className="text-center"
         >
           <h1 className="text-white" style={{ fontSize: 32, fontWeight: 900, letterSpacing: '2px' }}>
-            SPACE
+            {settings?.organizationName || '기본 이름'}
           </h1>
           <p className="text-white/70 mt-1" style={{ fontSize: 13 }}>
             서울과학기술대학교 학생복지위원회
@@ -139,7 +144,7 @@ export default function LoadingPage() {
         className="absolute bottom-12 text-white/50"
         style={{ fontSize: 12 }}
       >
-        In your space, with our SPACE 🛸
+        Loading...
       </motion.p>
     </div>
   );

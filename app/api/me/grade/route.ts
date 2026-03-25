@@ -2,18 +2,109 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-utils';
 
-type Grade = '별' | '행성' | '로켓' | 'UFO';
+interface GradeConfig {
+   id: string;
+   name: string;
+   type: 'ABSOLUTE_POINTS' | 'PERCENTILE';
+   minPoints: number;
+   maxPoints: number | null;
+   percentileMin: number | null;
+   percentileMax: number | null;
+   orderIndex: number;
+}
 
-// 등급 계산 로직
-function calculateGrade(myPoints: number, higherCount: number, totalEligible: number): Grade {
-   if (myPoints < 10) return '별';
-   if (totalEligible === 0) return '행성';
+// 등급 계산 로직 (데이터베이스 기반)
+function calculateGrade(
+   myPoints: number,
+   gradeConfigs: GradeConfig[],
+   percentile: number | null
+): string {
+   if (gradeConfigs.length === 0) {
+      // 등급 설정이 없으면 기본값
+      return '기본';
+   }
 
-   const percentile = (higherCount / totalEligible) * 100;
+   const gradeType = gradeConfigs[0]?.type || 'ABSOLUTE_POINTS';
 
-   if (percentile < 20) return 'UFO';
-   if (percentile < 60) return '로켓';
-   return '행성';
+   if (gradeType === 'PERCENTILE' && percentile !== null) {
+      // 퍼센타일 기반 등급 계산
+      // orderIndex가 높은 것부터 확인 (높은 등급부터)
+      const sortedConfigs = [...gradeConfigs].sort((a, b) => b.orderIndex - a.orderIndex);
+
+      for (const config of sortedConfigs) {
+         const meetsMin = config.percentileMin === null || percentile >= config.percentileMin;
+         const meetsMax = config.percentileMax === null || percentile < config.percentileMax;
+
+         if (meetsMin && meetsMax) {
+            return config.name;
+         }
+      }
+   } else {
+      // 절대 포인트 기반 등급 계산
+      const sortedConfigs = [...gradeConfigs].sort((a, b) => b.orderIndex - a.orderIndex);
+
+      for (const config of sortedConfigs) {
+         const meetsMin = myPoints >= config.minPoints;
+         const meetsMax = config.maxPoints === null || myPoints <= config.maxPoints;
+
+         if (meetsMin && meetsMax) {
+            return config.name;
+         }
+      }
+   }
+
+   // 매칭되는 등급이 없으면 가장 낮은 등급 반환
+   const lowestGrade = [...gradeConfigs].sort((a, b) => a.orderIndex - b.orderIndex)[0];
+   return lowestGrade?.name || '기본';
+}
+
+// 다음 등급 계산
+function calculateNextGrade(
+   myPoints: number,
+   currentGrade: string,
+   gradeConfigs: GradeConfig[],
+   percentile: number | null,
+   totalEligible: number
+): { next: string; need: number } | null {
+   if (gradeConfigs.length === 0) return null;
+
+   const gradeType = gradeConfigs[0]?.type || 'ABSOLUTE_POINTS';
+   const sortedConfigs = [...gradeConfigs].sort((a, b) => a.orderIndex - b.orderIndex);
+
+   // 현재 등급의 인덱스 찾기
+   const currentIndex = sortedConfigs.findIndex(g => g.name === currentGrade);
+
+   // 이미 최고 등급이면 null
+   if (currentIndex === sortedConfigs.length - 1 || currentIndex === -1) {
+      return null;
+   }
+
+   const nextGradeConfig = sortedConfigs[currentIndex + 1];
+
+   if (gradeType === 'ABSOLUTE_POINTS') {
+      // 절대 포인트 기반
+      const pointsNeeded = nextGradeConfig.minPoints - myPoints;
+      return {
+         next: nextGradeConfig.name,
+         need: Math.max(0, pointsNeeded),
+      };
+   } else {
+      // 퍼센타일 기반 - 상위 몇%에 들어야 하는지 계산
+      // percentileMax가 목표 (예: 상위 20%면 percentileMax가 20)
+      const targetPercentile = nextGradeConfig.percentileMax ?? 100;
+
+      // 대략적인 필요 포인트 계산은 어려우므로 간단히 표시
+      if (percentile !== null && targetPercentile < percentile) {
+         return {
+            next: nextGradeConfig.name,
+            need: Math.ceil((percentile - targetPercentile) * totalEligible / 100),
+         };
+      }
+      return {
+         next: nextGradeConfig.name,
+         need: 1, // 최소 1점 더 필요
+      };
+   }
 }
 
 // GET /api/me/grade - 현재 사용자의 등급 정보 조회
@@ -28,10 +119,14 @@ export async function GET() {
          );
       }
 
-      // 10점 이상인 유저 수 조회 (관리자 제외)
+      // 등급 설정 조회
+      const gradeConfigs = await prisma.gradeConfig.findMany({
+         orderBy: { orderIndex: 'asc' },
+      });
+
+      // 전체 유저 수 조회 (관리자 제외)
       const totalEligible = await prisma.user.count({
          where: {
-            points: { gte: 10 },
             isAdmin: false,
          },
       });
@@ -44,64 +139,29 @@ export async function GET() {
          },
       });
 
-      // 등급 계산
-      const grade = calculateGrade(currentUser.points, higherCount, totalEligible);
-
-      // 랭킹 정보 계산
-      const myRank = currentUser.points >= 10 ? higherCount + 1 : null;
-      const topPercent = myRank && totalEligible
-         ? Math.round((myRank / totalEligible) * 100)
+      // 퍼센타일 계산 (상위 몇%인지)
+      const myRank = higherCount + 1;
+      const percentile = totalEligible > 0
+         ? (myRank / totalEligible) * 100
          : null;
 
+      // 등급 계산
+      const grade = calculateGrade(
+         currentUser.points,
+         gradeConfigs as GradeConfig[],
+         percentile
+      );
+
       // 다음 등급 정보 계산
-      let nextGradeInfo = null;
+      const nextGradeInfo = calculateNextGrade(
+         currentUser.points,
+         grade,
+         gradeConfigs as GradeConfig[],
+         percentile,
+         totalEligible
+      );
 
-      if (grade === '별') {
-         nextGradeInfo = {
-            next: '행성',
-            need: 10 - currentUser.points,
-         };
-      } else if (grade !== 'UFO' && totalEligible) {
-         if (grade === '로켓') {
-            // UFO가 되려면 상위 20%에 진입해야 함
-            const top20Index = Math.floor(totalEligible * 0.2);
-            const topUsers = await prisma.user.findMany({
-               where: {
-                  points: { gte: 10 },
-                  isAdmin: false,
-               },
-               orderBy: { points: 'desc' },
-               skip: top20Index,
-               take: 1,
-               select: { points: true },
-            });
-
-            const targetPoints = topUsers[0]?.points ?? currentUser.points;
-            nextGradeInfo = {
-               next: 'UFO',
-               need: Math.max(0, targetPoints - currentUser.points + 1),
-            };
-         } else {
-            // 행성 -> 로켓 (상위 60%에 진입)
-            const top60Index = Math.max(0, Math.floor(totalEligible * 0.6) - 1);
-            const targetUsers = await prisma.user.findMany({
-               where: {
-                  points: { gte: 10 },
-                  isAdmin: false,
-               },
-               orderBy: { points: 'desc' },
-               skip: top60Index,
-               take: 1,
-               select: { points: true },
-            });
-
-            const targetPoints = targetUsers[0]?.points ?? currentUser.points;
-            nextGradeInfo = {
-               next: '로켓',
-               need: Math.max(0, targetPoints - currentUser.points + 1),
-            };
-         }
-      }
+      const topPercent = percentile !== null ? Math.round(percentile) : null;
 
       return NextResponse.json({
          grade,

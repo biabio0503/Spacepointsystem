@@ -84,6 +84,7 @@ export interface Settings {
   secondaryColor: string;
   contactPhone: string;
   contactPerson: string;
+  instagram: string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
 }

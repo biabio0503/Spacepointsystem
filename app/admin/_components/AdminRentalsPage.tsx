@@ -14,7 +14,7 @@ export default function AdminRentalsPage() {
     refreshRentals();
     refreshRentalItems();
     refreshUsers();
-  }, []);
+  }, [refreshRentals, refreshRentalItems, refreshUsers]);
 
   const filteredRentals = rentals.filter(rental => {
     if (filterStatus === 'all') return true;

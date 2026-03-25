@@ -2,14 +2,27 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ChevronLeft, Image } from 'lucide-react';
+import { ChevronLeft, Image as ImageIcon } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useStore } from '@/store/useStore';
+import { adminEventFormSchema, type AdminEventFormInput } from '@/lib/validations';
 
 // InputField 컴포넌트를 외부로 이동
 const InputField = ({
   label, name, type = 'text', placeholder, required = false,
   value, onChange, error, hint,
-}: any) => (
+}: {
+  label: string;
+  name?: string;
+  type?: string;
+  placeholder?: string;
+  required?: boolean;
+  value: string | number;
+  onChange: (value: string) => void;
+  error?: string;
+  hint?: string;
+}) => (
   <div>
     <label className="block mb-1.5" style={{ fontSize: 13, color: '#555', fontWeight: 600 }}>
       {label} {required && <span style={{ color: '#EF4444' }}>*</span>}
@@ -35,23 +48,33 @@ export default function AdminEventFormPage() {
   const isEdit = !!id;
   const existingEvent = isEdit ? events.find(e => e.id === id) : null;
 
-  const [form, setForm] = useState({
-    title: '',
-    location: '',
-    date: '',
-    endDate: '',
-    content: '',
-    imageUrls: [] as string[],
-    instagramUrl: '',
-    points: 10,
-    postDate: '',
-    postEndDate: '',
-    isActive: true,
+  const {
+    reset,
+    watch,
+    setValue,
+    getValues,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<AdminEventFormInput>({
+    resolver: zodResolver(adminEventFormSchema),
+    defaultValues: {
+      title: '',
+      location: '',
+      date: '',
+      endDate: '',
+      content: '',
+      imageUrls: [],
+      instagramUrl: '',
+      points: 10,
+      postDate: '',
+      postEndDate: '',
+      isActive: true,
+    },
   });
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const form = watch();
 
   // 날짜를 input type="date" 형식으로 변환하는 함수
   const formatDateForInput = (dateString: string | null | undefined): string => {
@@ -71,11 +94,11 @@ export default function AdminEventFormPage() {
     if (isEdit) {
       refreshEvents();
     }
-  }, [isEdit]);
+  }, [isEdit, refreshEvents]);
 
   useEffect(() => {
     if (existingEvent) {
-      setForm({
+      reset({
         title: existingEvent.title,
         location: existingEvent.location,
         date: formatDateForInput(existingEvent.date),
@@ -93,7 +116,7 @@ export default function AdminEventFormPage() {
         setImagePreviews(existingEvent.imageUrls);
       }
     }
-  }, [existingEvent]);
+  }, [existingEvent, reset]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -138,10 +161,8 @@ export default function AdminEventFormPage() {
 
       // 기존 이미지들과 합치기
       setImagePreviews(prev => [...prev, ...newPreviews]);
-      setForm(p => ({
-        ...p,
-        imageUrls: [...p.imageUrls, ...uploadedUrls],
-      }));
+      const currentUrls = getValues('imageUrls');
+      setValue('imageUrls', [...currentUrls, ...uploadedUrls], { shouldValidate: true });
     } catch (error: any) {
       console.error('이미지 업로드 에러:', error);
       alert(error.message || '이미지 업로드에 실패했습니다.');
@@ -154,13 +175,8 @@ export default function AdminEventFormPage() {
 
   const handleRemoveImage = (index: number) => {
     setImagePreviews(prev => prev.filter((_, i) => i !== index));
-    setForm(p => {
-      const newImageUrls = p.imageUrls.filter((_, i) => i !== index);
-      return {
-        ...p,
-        imageUrls: newImageUrls,
-      };
-    });
+    const newImageUrls = getValues('imageUrls').filter((_, i) => i !== index);
+    setValue('imageUrls', newImageUrls, { shouldValidate: true });
   };
 
   const handleMoveImage = (fromIndex: number, toIndex: number) => {
@@ -173,38 +189,20 @@ export default function AdminEventFormPage() {
       return newPreviews;
     });
 
-    setForm(p => {
-      const newUrls = [...p.imageUrls];
-      const [movedUrl] = newUrls.splice(fromIndex, 1);
-      newUrls.splice(toIndex, 0, movedUrl);
-      return {
-        ...p,
-        imageUrls: newUrls,
-      };
-    });
+    const newUrls = [...getValues('imageUrls')];
+    const [movedUrl] = newUrls.splice(fromIndex, 1);
+    newUrls.splice(toIndex, 0, movedUrl);
+    setValue('imageUrls', newUrls, { shouldValidate: true });
   };
 
-  const validate = () => {
-    const newErrors: Record<string, string> = {};
-    if (!form.title.trim()) newErrors.title = '사업명을 입력해주세요.';
-    if (!form.location.trim()) newErrors.location = '장소를 입력해주세요.';
-    if (!form.date) newErrors.date = '날짜를 입력해주세요.';
-    if (!form.content.trim()) newErrors.content = '내용을 입력해주세요.';
-    if (!form.postDate) newErrors.postDate = '게시일을 입력해주세요.';
-    if (!form.postEndDate) newErrors.postEndDate = '게시 종료일을 입력해주세요.';
-    if (form.points < 0) newErrors.points = '포인트는 0 이상이어야 합니다.';
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = () => {
-    if (!validate()) return;
+  const onSubmit = (formData: AdminEventFormInput) => {
     const submitData = {
-      ...form,
-      endDate: form.endDate || undefined,
-      imageUrls: form.imageUrls.length > 0 ? form.imageUrls : [],
-      instagramUrl: form.instagramUrl || undefined
+      ...formData,
+      endDate: formData.endDate || undefined,
+      imageUrls: formData.imageUrls.length > 0 ? formData.imageUrls : [],
+      instagramUrl: formData.instagramUrl || undefined,
     };
+
     if (isEdit && id) {
       updateEvent(id, submitData);
     } else {
@@ -238,28 +236,28 @@ export default function AdminEventFormPage() {
           <InputField
             label="사업명" required
             value={form.title}
-            onChange={(v: string) => setForm(p => ({ ...p, title: v }))}
+            onChange={(v: string) => setValue('title', v, { shouldValidate: true })}
             placeholder="ex) 5월 컬처데이"
-            error={errors.title}
+            error={errors.title?.message}
           />
           <InputField
             label="사업 장소" required
             value={form.location}
-            onChange={(v: string) => setForm(p => ({ ...p, location: v }))}
+            onChange={(v: string) => setValue('location', v, { shouldValidate: true })}
             placeholder="ex) 학생회관 1층 로비"
-            error={errors.location}
+            error={errors.location?.message}
           />
           <div className="grid grid-cols-2 gap-3">
             <InputField
               label="행사 날짜" type="date" required
               value={form.date}
-              onChange={(v: string) => setForm(p => ({ ...p, date: v }))}
-              error={errors.date}
+              onChange={(v: string) => setValue('date', v, { shouldValidate: true })}
+              error={errors.date?.message}
             />
             <InputField
               label="종료 날짜" type="date"
               value={form.endDate}
-              onChange={(v: string) => setForm(p => ({ ...p, endDate: v }))}
+              onChange={(v: string) => setValue('endDate', v, { shouldValidate: true })}
               hint="기간 행사 시 입력"
             />
           </div>
@@ -274,13 +272,13 @@ export default function AdminEventFormPage() {
             </label>
             <textarea
               value={form.content}
-              onChange={e => setForm(p => ({ ...p, content: e.target.value }))}
+              onChange={e => setValue('content', e.target.value, { shouldValidate: true })}
               placeholder="사업 내용을 입력해주세요..."
               rows={4}
               className="w-full px-4 py-3 rounded-xl border outline-none resize-none"
               style={{ borderColor: errors.content ? '#EF4444' : '#E5E7EB', background: '#F9F9F9', fontSize: 14, lineHeight: '1.6' }}
             />
-            {errors.content && <p className="mt-1" style={{ fontSize: 12, color: '#EF4444' }}>{errors.content}</p>}
+            {errors.content && <p className="mt-1" style={{ fontSize: 12, color: '#EF4444' }}>{errors.content.message}</p>}
           </div>
         </div>
 
@@ -370,7 +368,7 @@ export default function AdminEventFormPage() {
                     cursor: uploading ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  <Image size={20} />
+                  <ImageIcon size={20} />
                   <span style={{ fontSize: 14, fontWeight: 500 }}>
                     {uploading ? '업로드 중...' : `이미지 추가 (${imagePreviews.length}/10)`}
                   </span>
@@ -385,7 +383,7 @@ export default function AdminEventFormPage() {
           <InputField
             label="인스타그램 게시물 주소"
             value={form.instagramUrl}
-            onChange={(v: string) => setForm(p => ({ ...p, instagramUrl: v }))}
+            onChange={(v: string) => setValue('instagramUrl', v, { shouldValidate: true })}
             placeholder="https://instagram.com/..."
             hint="게시물 URL을 입력해주세요 (선택)"
           />
@@ -402,7 +400,7 @@ export default function AdminEventFormPage() {
               <input
                 type="number"
                 value={form.points}
-                onChange={e => setForm(p => ({ ...p, points: Number(e.target.value) }))}
+                onChange={e => setValue('points', Number(e.target.value), { shouldValidate: true })}
                 min={0}
                 className="flex-1 px-4 py-3 rounded-xl border outline-none"
                 style={{ borderColor: errors.points ? '#EF4444' : '#E5E7EB', background: '#F9F9F9', fontSize: 15 }}
@@ -414,7 +412,7 @@ export default function AdminEventFormPage() {
               {[5, 10, 15, 20, 25, 30].map(p => (
                 <button
                   key={p}
-                  onClick={() => setForm(prev => ({ ...prev, points: p }))}
+                  onClick={() => setValue('points', p, { shouldValidate: true })}
                   className="px-3 py-1 rounded-lg text-xs transition-colors"
                   style={{
                     background: form.points === p ? '#1B2A5C' : '#F3F4F6',
@@ -426,20 +424,20 @@ export default function AdminEventFormPage() {
                 </button>
               ))}
             </div>
-            {errors.points && <p className="mt-1" style={{ fontSize: 12, color: '#EF4444' }}>{errors.points}</p>}
+            {errors.points && <p className="mt-1" style={{ fontSize: 12, color: '#EF4444' }}>{errors.points.message}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <InputField
               label="게시일" type="date" required
               value={form.postDate}
-              onChange={(v: string) => setForm(p => ({ ...p, postDate: v }))}
-              error={errors.postDate}
+              onChange={(v: string) => setValue('postDate', v, { shouldValidate: true })}
+              error={errors.postDate?.message}
             />
             <InputField
               label="게시 종료일" type="date" required
               value={form.postEndDate}
-              onChange={(v: string) => setForm(p => ({ ...p, postEndDate: v }))}
-              error={errors.postEndDate}
+              onChange={(v: string) => setValue('postEndDate', v, { shouldValidate: true })}
+              error={errors.postEndDate?.message}
             />
           </div>
         </div>
@@ -451,7 +449,7 @@ export default function AdminEventFormPage() {
             <p style={{ fontSize: 12, color: '#9CA3AF' }}>비활성화 시 사용자에게 표시되지 않습니다</p>
           </div>
           <button
-            onClick={() => setForm(p => ({ ...p, isActive: !p.isActive }))}
+            onClick={() => setValue('isActive', !form.isActive, { shouldValidate: true })}
             className="relative w-12 h-6 rounded-full transition-colors"
             style={{ background: form.isActive ? '#1B2A5C' : '#E5E7EB' }}
           >
@@ -464,7 +462,7 @@ export default function AdminEventFormPage() {
 
         {/* Submit */}
         <button
-          onClick={handleSubmit}
+          onClick={handleSubmit(onSubmit)}
           className="w-full py-4 rounded-xl text-white"
           style={{
             background: saved ? '#7DC443' : 'linear-gradient(135deg, #1B2A5C, #2E4A9A)',

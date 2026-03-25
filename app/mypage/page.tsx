@@ -7,11 +7,25 @@ import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { GradeBadge, GradeIcon } from '@/app/_components/shared/GradeBadge';
 import { BottomNav } from '@/app/_components/shared/BottomNav';
-import { meAPI } from '@/lib/api-client';
-import type { Grade } from '@/store/useStore';
+import { meAPI, gradeConfigsAPI } from '@/lib/api-client';
+
+interface GradeConfig {
+  id: string;
+  name: string;
+  emoji: string;
+  color: string;
+  bgColor: string;
+  benefit: string;
+  minPoints: number;
+  maxPoints: number | null;
+  percentileMin: number | null;
+  percentileMax: number | null;
+  type: 'ABSOLUTE_POINTS' | 'PERCENTILE';
+  orderIndex: number;
+}
 
 interface GradeData {
-  grade: Grade;
+  grade: string;
   rank: number | null;
   totalEligible: number;
   topPercent: number | null;
@@ -29,8 +43,9 @@ interface PointHistory {
 
 export default function MyPage() {
   const router = useRouter();
-  const { currentUser, getGradeInfo } = useStore();
+  const { currentUser } = useStore();
   const [gradeData, setGradeData] = useState<GradeData | null>(null);
+  const [gradeConfigs, setGradeConfigs] = useState<GradeConfig[]>([]);
   const [pointHistory, setPointHistory] = useState<PointHistory[]>([]);
 
   useEffect(() => {
@@ -50,6 +65,11 @@ export default function MyPage() {
       meAPI.getPointHistory()
         .then(data => setPointHistory(data.pointHistory))
         .catch(err => console.error('Failed to load point history:', err));
+
+      // 등급 설정 로드
+      gradeConfigsAPI.getAll()
+        .then(data => setGradeConfigs(data.gradeConfigs))
+        .catch(err => console.error('Failed to load grade configs:', err));
     }
   }, [currentUser]);
 
@@ -57,7 +77,14 @@ export default function MyPage() {
     return null;
   }
 
-  const gradeInfo = getGradeInfo(gradeData.grade);
+  // 현재 등급 정보 가져오기
+  const currentGradeConfig = gradeConfigs.find(g => g.name === gradeData.grade);
+  const gradeInfo = {
+    color: currentGradeConfig?.color || '#8B9BC8',
+    bg: currentGradeConfig?.bgColor || '#EEF1FC',
+    emoji: currentGradeConfig?.emoji || '⭐',
+    label: gradeData.grade,
+  };
 
   // pointHistory는 이미 현재 사용자 것만 로드됨
   const userHistory = pointHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -113,10 +140,7 @@ export default function MyPage() {
 
         {/* User name & grade */}
         <div className="flex items-center gap-4">
-          <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center"
-            style={{ background: 'rgba(255,255,255,0.1)' }}
-          >
+          <div className='ml-3'>
             <GradeIcon grade={gradeData.grade} size={48} />
           </div>
           <div>
@@ -154,62 +178,70 @@ export default function MyPage() {
         <div className="bg-white rounded-2xl p-5 shadow-sm">
           <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1F2937', marginBottom: 16 }}>등급 현황</h3>
 
-          {/* Grade steps */}
-          <div className="flex items-center justify-between mb-4">
-            {(['별', '행성', '로켓', 'UFO'] as const).map((g, i, arr) => {
-              const info = getGradeInfo(g);
-              const isActive = g === gradeData.grade;
-              const isPast = arr.indexOf(gradeData.grade) > i;
-              return (
-                <div key={g} className="flex items-center">
-                  <div className="flex flex-col items-center gap-1">
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center"
-                      style={{
-                        background: isActive ? info.color : isPast ? info.bg : '#F3F4F6',
-                        border: `2px solid ${isActive ? info.color : isPast ? info.color + '80' : '#E5E7EB'}`,
-                      }}
-                    >
-                      <span style={{ fontSize: 16 }}>{info.emoji}</span>
+          {/* Grade steps - 데이터베이스에서 받아온 등급 */}
+          {gradeConfigs.length > 0 && (
+            <div className="flex items-center justify-between mb-4">
+              {gradeConfigs
+                .sort((a, b) => a.orderIndex - b.orderIndex)
+                .map((g, i, arr) => {
+                  const isActive = g.name === gradeData.grade;
+                  const currentIndex = arr.findIndex(config => config.name === gradeData.grade);
+                  const isPast = currentIndex > i;
+                  return (
+                    <div key={g.id} className="flex items-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <div
+                          className="w-10 h-10 rounded-full flex items-center justify-center"
+                          style={{
+                            background: isActive ? g.color : isPast ? g.bgColor : '#F3F4F6',
+                            border: `2px solid ${isActive ? g.color : isPast ? g.color + '80' : '#E5E7EB'}`,
+                          }}
+                        >
+                          <span style={{ fontSize: 16 }}>{g.emoji}</span>
+                        </div>
+                        <span style={{
+                          fontSize: 9,
+                          color: isActive ? g.color : '#9CA3AF',
+                          fontWeight: isActive ? 700 : 400,
+                        }}>
+                          {g.name}
+                        </span>
+                      </div>
+                      {i < arr.length - 1 && (
+                        <div
+                          className="w-6 h-0.5 mb-4"
+                          style={{ background: isPast ? '#1B2A5C' : '#E5E7EB', marginLeft: 2, marginRight: 2 }}
+                        />
+                      )}
                     </div>
-                    <span style={{
-                      fontSize: 9,
-                      color: isActive ? info.color : '#9CA3AF',
-                      fontWeight: isActive ? 700 : 400,
-                    }}>
-                      {g}
-                    </span>
-                  </div>
-                  {i < arr.length - 1 && (
-                    <div
-                      className="w-6 h-0.5 mb-4"
-                      style={{ background: isPast ? '#1B2A5C' : '#E5E7EB', marginLeft: 2, marginRight: 2 }}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                  );
+                })}
+            </div>
+          )}
 
-          {gradeData.nextGrade ? (
-            <>
-              <div className="flex justify-between mb-2">
-                <span style={{ fontSize: 12, color: '#9CA3AF' }}>다음 등급 진행도</span>
-                <span style={{ fontSize: 12, color: gradeInfo.color, fontWeight: 600 }}>
-                  {gradeData.nextGrade.next}까지 {gradeData.nextGrade.need}점
-                </span>
-              </div>
-              <div className="h-2.5 rounded-full overflow-hidden" style={{ background: '#F3F4F6' }}>
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, (currentUser.points / (currentUser.points + gradeData.nextGrade.need)) * 100)}%` }}
-                  transition={{ duration: 1, ease: 'easeOut' }}
-                  className="h-full rounded-full"
-                  style={{ background: `linear-gradient(90deg, ${gradeInfo.color}, ${gradeInfo.color}aa)` }}
-                />
-              </div>
-            </>
-          ) : (
+          {gradeData.nextGrade ? (() => {
+            const nextGradeConfig = gradeConfigs.find(g => g.name === gradeData.nextGrade?.next);
+            const nextColor = nextGradeConfig?.color || gradeInfo.color;
+            return (
+              <>
+                <div className="flex justify-between mb-2">
+                  <span style={{ fontSize: 12, color: '#9CA3AF' }}>다음 등급 진행도</span>
+                  <span style={{ fontSize: 12, color: nextColor, fontWeight: 600 }}>
+                    {nextGradeConfig?.emoji} {gradeData.nextGrade.next}까지 {gradeData.nextGrade.need}점
+                  </span>
+                </div>
+                <div className="h-2.5 rounded-full overflow-hidden" style={{ background: '#F3F4F6' }}>
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(100, (currentUser.points / (currentUser.points + gradeData.nextGrade.need)) * 100)}%` }}
+                    transition={{ duration: 1, ease: 'easeOut' }}
+                    className="h-full rounded-full"
+                    style={{ background: `linear-gradient(90deg, ${gradeInfo.color}, ${gradeInfo.color}aa)` }}
+                  />
+                </div>
+              </>
+            );
+          })() : (
             <div className="text-center py-2" style={{ color: '#F5C518', fontWeight: 600, fontSize: 14 }}>
               🏆 최고 등급 달성!
             </div>
