@@ -48,7 +48,6 @@ export default function AdminMembersPage() {
   useEffect(() => {
     const q = searchParams.get('search');
     if (q) setSearch(q);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<string | null>(null);
