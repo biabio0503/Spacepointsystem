@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
 import type { RentalItem } from '@/store/useStore';
-import { useForm, useWatch } from 'react-hook-form';
+import { type Resolver, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Edit2, Trash2, Package, X, Save } from 'lucide-react';
@@ -20,7 +20,7 @@ export default function AdminRentalItemsPage() {
     handleSubmit,
     formState: { errors },
   } = useForm<AdminRentalItemFormInput>({
-    resolver: zodResolver(adminRentalItemFormSchema),
+    resolver: zodResolver(adminRentalItemFormSchema) as Resolver<AdminRentalItemFormInput>,
     defaultValues: {
       name: '',
       category: '',
@@ -405,7 +405,7 @@ export default function AdminRentalItemsPage() {
                     <input
                       type="number"
                       min="1"
-                      value={formData.totalStock}
+                      value={formData.totalStock ?? 1}
                       onChange={e => setValue('totalStock', Math.max(1, Number(e.target.value)), { shouldValidate: true })}
                       className="w-full px-4 py-3 rounded-xl border border-gray-300 outline-none focus:border-blue-500"
                     />
@@ -419,12 +419,12 @@ export default function AdminRentalItemsPage() {
                     <div className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-600 flex items-center justify-between">
                       <span>
                         {editingItem
-                          ? calculateAvailable(editingItem.id, formData.totalStock)
-                          : formData.totalStock
+                          ? calculateAvailable(editingItem.id, formData.totalStock ?? 1)
+                          : (formData.totalStock ?? 1)
                         }
                       </span>
                       <span className="text-xs text-gray-400">
-                        (총 {formData.totalStock}개)
+                        (총 {formData.totalStock ?? 1}개)
                       </span>
                     </div>
                     <p className="text-xs text-gray-500 mt-1">

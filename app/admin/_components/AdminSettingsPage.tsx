@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Save, Plus, Edit2, Trash2, Upload, Palette } from 'lucide-react';
-import { useForm, useWatch } from 'react-hook-form';
+import { type Resolver, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useStore } from '@/store/useStore';
 import {
@@ -75,7 +75,7 @@ export default function AdminSettingsPage() {
     handleSubmit: handleSettingsSubmit,
     formState: { errors: settingsErrors },
   } = useForm<AdminSettingsFormInput>({
-    resolver: zodResolver(adminSettingsFormSchema),
+    resolver: zodResolver(adminSettingsFormSchema) as Resolver<AdminSettingsFormInput>,
     defaultValues: {
       organizationName: '',
       primaryColor: '#1B2A5C',
@@ -94,7 +94,7 @@ export default function AdminSettingsPage() {
     handleSubmit: handleGradeSubmit,
     formState: { errors: gradeErrors },
   } = useForm<AdminGradeConfigFormInput>({
-    resolver: zodResolver(adminGradeConfigFormSchema),
+    resolver: zodResolver(adminGradeConfigFormSchema) as Resolver<AdminGradeConfigFormInput>,
     defaultValues: defaultGradeForm(),
   });
 
