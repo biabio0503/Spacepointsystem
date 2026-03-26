@@ -72,7 +72,7 @@ export default function SettingsPage() {
             style={{ background: `linear-gradient(135deg, #0D1B3E, ${primaryColor})` }}
          >
             <div className="flex items-center gap-3">
-               <button onClick={() => router.back()}>
+               <button onClick={() => router.push('/mypage')}>
                   <ChevronLeft size={24} color="white" />
                </button>
                <h1 className="text-white" style={{ fontSize: 20, fontWeight: 800 }}>계정 관리</h1>
