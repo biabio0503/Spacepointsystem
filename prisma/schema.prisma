@@ -122,6 +122,7 @@ enum RentalStatus {
 model Settings {
   id               String   @id @default(uuid())
   organizationName String   @map("organization_name")
+  organizationSlogun String? @map("organization_slogun")
   logoMain         String?  @map("logo_main")
   instagram        String?
   primaryColor     String   @default("#3B82F6") @map("primary_color")

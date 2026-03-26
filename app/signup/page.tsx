@@ -6,7 +6,8 @@ import { motion } from 'motion/react';
 import { ChevronDown, ChevronLeft } from 'lucide-react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { DEPARTMENTS } from '@/store/useStore';
+import { DEPARTMENTS, useStore } from '@/store/useStore';
+import { Skeleton } from '@/app/_components/ui/skeleton';
 import {
    signUpBasicInfoSchema,
    signUpOptionalSchema,
@@ -19,12 +20,15 @@ import {
 type SignUpFormValues = SignUpBasicInfoInput & SignUpPasswordInput & SignUpOptionalInput;
 
 type MembershipFeeStatus = 'paid' | 'not_paid' | 'unknown';
-type SignUpStep = 0 | 1 | 2 | 3 | 'welcome';
+type SignUpStep = 0 | 1 | 2 | 'welcome';
 
 function SignUpPageContent() {
    const router = useRouter();
    const searchParams = useSearchParams();
-
+   const { settings } = useStore();
+   const logoUrl = settings?.logoMain || '/logo.png';
+   
+   const [isImageLoaded, setIsImageLoaded] = useState(false);
    const [showDeptDropdown, setShowDeptDropdown] = useState(false);
    const [currentStep, setCurrentStep] = useState<SignUpStep>(0);
    const [newUser, setNewUser] = useState<any>(null);
@@ -116,31 +120,11 @@ function SignUpPageContent() {
          setCurrentStep(2);
          return;
       }
-
-      if (currentStep === 2) {
-         const valid = await trigger(['password', 'passwordConfirm']);
-         if (!valid) return;
-
-         const passwordParsed = signUpPasswordSchema.safeParse({
-            password: getValues('password'),
-            passwordConfirm: getValues('passwordConfirm'),
-         });
-
-         if (!passwordParsed.success) {
-            const issue = passwordParsed.error.issues[0];
-            const path = issue.path[0] as 'password' | 'passwordConfirm';
-            setError(path, { message: issue.message });
-            return;
-         }
-
-         setCurrentStep(3);
-      }
    };
 
    const handlePrevStep = () => {
       if (currentStep === 1) setCurrentStep(0);
       else if (currentStep === 2) setCurrentStep(1);
-      else if (currentStep === 3) setCurrentStep(2);
       else router.push('/login');
    };
 
@@ -193,23 +177,17 @@ function SignUpPageContent() {
       }
    };
 
-   const handleSubmitWithoutReferral = async () => {
-      setValue('referralCode', '', { shouldValidate: false });
-      await handleSubmit(onSubmit)();
-   };
-
    const getStepDescription = () => {
       if (currentStep === 0) return '회원가입 방법을 선택하세요';
       if (currentStep === 1) return '회원 정보를 입력해주세요';
       if (currentStep === 2) return '로그인에 사용할 비밀번호를 설정하세요';
-      return '추천인이 있으시면 학번을 입력해주세요';
+      return '';
    };
 
    const getCurrentStepNumber = () => {
       if (currentStep === 0) return 0;
       if (currentStep === 1) return 1;
       if (currentStep === 2) return 2;
-      if (currentStep === 3) return 3;
       return 0;
    };
 
@@ -226,16 +204,20 @@ function SignUpPageContent() {
                   transition={{ duration: 2, delay: 0.3, repeat: Infinity }}
                   className="text-7xl"
                >
-                  🛸
+                  🎉
                </motion.div>
                <div>
                   <h1 style={{ fontSize: 24, fontWeight: 800, color: '#1B2A5C' }}>
                      환영해요, {newUser?.name}님!
                   </h1>
-                  <p className="mt-2" style={{ fontSize: 14, color: '#6B7280', lineHeight: '1.6' }}>
-                     SPACE 포인트에 가입되었어요.
-                     <br />
-                     별부터 UFO까지 함께 우주를 탐험해요!
+                  <p className="flex flex-col mt-3 text-gray-600 gap-3" style={{ fontSize: 14, lineHeight: '1.6' }}>
+                     <p>
+                        <b>학생복지위원회 멤버십</b>에 가입되셨습니다!<br />
+                     </p>
+                     <p>
+                        행사와 사업 소식을 빠르고 편하게 접하고,<br /> 
+                        마일리지를 쌓아 상품을 노려보세요!<br /> 
+                     </p>
                   </p>
                </div>
 
@@ -244,7 +226,7 @@ function SignUpPageContent() {
                   className="w-full py-4 rounded-xl text-white"
                   style={{ background: 'linear-gradient(135deg, #1B2A5C, #2E4A9A)', fontWeight: 700, fontSize: 16 }}
                >
-                  홈으로 가기 🚀
+                  홈으로 가기 ✨
                </button>
             </motion.div>
          </div>
@@ -283,15 +265,24 @@ function SignUpPageContent() {
                      animate={{ y: [-3, 3, -3] }}
                      transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
                   >
+                     {!isImageLoaded && (
+                        <Skeleton className="w-24 h-24 rounded-full bg-white/20" />
+                     )}
                      <img
-                        src="/logos/logo.png"
+                        src={logoUrl}
                         alt="SPACE logo"
-                        style={{ width: 96, height: 96, borderRadius: '50%' }}
+                        style={{
+                           width: 96,
+                           height: 96,
+                           borderRadius: '50%',
+                           display: isImageLoaded ? 'block' : 'none',
+                        }}
+                        onLoad={() => setIsImageLoaded(true)}
                      />
                   </motion.div>
                   <div className="text-center">
-                     <h1 className="text-white" style={{ fontSize: 30, fontWeight: 900, letterSpacing: '3px' }}>SPACE</h1>
-                     <p className="text-white/60 mt-1" style={{ fontSize: 12 }}>In your space, with our SPACE</p>
+                     <h1 className="text-white" style={{ fontSize: 30, fontWeight: 900, letterSpacing: '3px' }}>{settings?.organizationName || ' '}</h1>
+                     <p className="text-white/50 mt-0.5" style={{ fontSize: 11 }}>{settings?.organizationSlogun || ' '}</p>
                      <p className="text-white/50 mt-0.5" style={{ fontSize: 11 }}>서울과학기술대학교 학생복지위원회</p>
                   </div>
                </motion.div>
@@ -304,7 +295,7 @@ function SignUpPageContent() {
                   transition={{ delay: 0.2 }}
                >
                   <p className="text-gray-600 mb-6 text-center" style={{ fontSize: 14 }}>
-                     회원가입하고 우주를 탐험해보세요 🚀
+                     회원가입하고 마일리지를 적립해보세요!
                   </p>
 
                   <button
@@ -341,7 +332,7 @@ function SignUpPageContent() {
             <p className="text-white/70 mt-1" style={{ fontSize: 13 }}>{getStepDescription()}</p>
 
             <div className="flex gap-2 mt-4">
-               {Array.from({ length: 3 }, (_, i) => i + 1).map(step => (
+               {Array.from({ length: 2 }, (_, i) => i + 1).map(step => (
                   <div
                      key={step}
                      className="flex-1 h-1 rounded-full"
@@ -491,9 +482,9 @@ function SignUpPageContent() {
                      </label>
                      <div className="flex gap-2">
                         {[
-                           { value: 'paid', label: '네 ✓', active: '#10B981', bg: '#ECFDF5' },
-                           { value: 'not_paid', label: '아니요 ✗', active: '#EF4444', bg: '#FEF2F2' },
-                           { value: 'unknown', label: '모름 ?', active: '#F59E0B', bg: '#FFFBEB' },
+                           { value: 'paid', label: '납부', active: '#10B981', bg: '#ECFDF5' },
+                           { value: 'not_paid', label: '미납부', active: '#EF4444', bg: '#FEF2F2' },
+                           { value: 'unknown', label: '확인 필요', active: '#F59E0B', bg: '#FFFBEB' },
                         ].map(item => {
                            const selected = values.membershipFeeStatus === item.value;
                            return (
@@ -558,41 +549,8 @@ function SignUpPageContent() {
                      {errors.passwordConfirm && <p className="mt-1" style={{ fontSize: 12, color: '#EF4444' }}>{errors.passwordConfirm.message}</p>}
                   </div>
 
-                  <button
-                     type="button"
-                     onClick={handleNextStep}
-                     className="w-full py-4 rounded-xl text-white mt-6"
-                     style={{ background: 'linear-gradient(135deg, #1B2A5C, #2E4A9A)', fontWeight: 700, fontSize: 16 }}
-                  >
-                     다음 단계
-                  </button>
-               </>
-            )}
-
-            {currentStep === 3 && (
-               <>
-                  <div>
-                     <label className="block mb-1.5" style={{ fontSize: 13, color: '#555', fontWeight: 600 }}>
-                        추천인 학번 <span style={{ fontWeight: 400, color: '#9CA3AF' }}>(선택사항)</span>
-                     </label>
-                     <input
-                        type="text"
-                        {...register('referralCode', {
-                           onChange: e => {
-                              const value = e.target.value.replace(/\D/g, '').slice(0, 8);
-                              setValue('referralCode', value, { shouldValidate: true });
-                           },
-                        })}
-                        placeholder="추천인의 학번 8자리"
-                        maxLength={8}
-                        className="w-full px-4 py-3 rounded-xl border outline-none"
-                        style={{ borderColor: errors.referralCode ? '#EF4444' : '#E5E7EB', background: '#fff', fontSize: 15 }}
-                     />
-                     {errors.referralCode && <p className="mt-1" style={{ fontSize: 12, color: '#EF4444' }}>{errors.referralCode.message}</p>}
-                  </div>
-
                   {serverError && (
-                     <div className="p-3 rounded-xl" style={{ background: '#FEE2E2' }}>
+                     <div className="p-3 rounded-xl mb-4" style={{ background: '#FEE2E2' }}>
                         <p style={{ fontSize: 13, color: '#DC2626' }}>{serverError}</p>
                      </div>
                   )}
@@ -603,17 +561,7 @@ function SignUpPageContent() {
                      className="w-full py-4 rounded-xl text-white mt-6"
                      style={{ background: 'linear-gradient(135deg, #1B2A5C, #2E4A9A)', fontWeight: 700, fontSize: 16 }}
                   >
-                     {isSubmitting ? '가입 중...' : '가입 완료하기 🚀'}
-                  </button>
-
-                  <button
-                     type="button"
-                     onClick={handleSubmitWithoutReferral}
-                     disabled={isSubmitting}
-                     className="w-full py-3 rounded-xl text-gray-600 mt-2"
-                     style={{ background: '#F3F4F6', fontWeight: 600, fontSize: 14 }}
-                  >
-                     추천인 없이 가입
+                     {isSubmitting ? '가입 중...' : '가입 완료하기'}
                   </button>
                </>
             )}

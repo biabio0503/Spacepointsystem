@@ -5,11 +5,11 @@ import { LayoutDashboard, Calendar, Users, LogOut, Package, ClipboardList, Setti
 import { useStore } from '@/store/useStore';
 
 const navItems = [
-  { path: '/admin', icon: LayoutDashboard, label: '홈' },
-  { path: '/admin/events', icon: Calendar, label: '사업관리' },
-  { path: '/admin/rental-items', icon: Package, label: '대여품목' },
-  { path: '/admin/rentals', icon: ClipboardList, label: '대여현황' },
-  { path: '/admin/members', icon: Users, label: '가입자' },
+  { path: '/admin', icon: LayoutDashboard, label: '대시보드' },
+  { path: '/admin/events', icon: Calendar, label: '이벤트' },
+  { path: '/admin/rental-items', icon: Package, label: '물품 대여' },
+  { path: '/admin/rentals', icon: ClipboardList, label: '대여 현황' },
+  { path: '/admin/members', icon: Users, label: '멤버 관리' },
   { path: '/admin/settings', icon: Settings, label: '설정' },
 ];
 

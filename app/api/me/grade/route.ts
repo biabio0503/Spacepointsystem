@@ -32,6 +32,11 @@ function calculateGrade(
       const sortedConfigs = [...gradeConfigs].sort((a, b) => b.orderIndex - a.orderIndex);
 
       for (const config of sortedConfigs) {
+         // Check absolute min points for relative grades (e.g. must exceed threshold to get relative grade)
+         if (config.minPoints > 0 && myPoints < config.minPoints) {
+            continue;
+         }
+
          const meetsMin = config.percentileMin === null || percentile >= config.percentileMin;
          const meetsMax = config.percentileMax === null || percentile < config.percentileMax;
 

@@ -16,6 +16,7 @@ import {
 type Settings = {
   id: string;
   organizationName: string;
+  organizationSlogun: string | null;
   logoMain: string | null;
   primaryColor: string;
   secondaryColor: string;
@@ -78,6 +79,7 @@ export default function AdminSettingsPage() {
     resolver: zodResolver(adminSettingsFormSchema) as Resolver<AdminSettingsFormInput>,
     defaultValues: {
       organizationName: '',
+      organizationSlogun: '',
       primaryColor: '#1B2A5C',
       secondaryColor: '#7DC443',
       contactPhone: '',
@@ -108,6 +110,7 @@ export default function AdminSettingsPage() {
         setSettings(data.settings);
         resetSettingsForm({
           organizationName: data.settings.organizationName ?? '',
+          organizationSlogun: data.settings.organizationSlogun ?? '',
           primaryColor: data.settings.primaryColor ?? '#1B2A5C',
           secondaryColor: data.settings.secondaryColor ?? '#7DC443',
           contactPhone: data.settings.contactPhone ?? '',
@@ -333,6 +336,21 @@ export default function AdminSettingsPage() {
             </div>
 
             <div>
+              <label className="block mb-1.5" style={{ fontSize: 13, color: '#555', fontWeight: 600 }}>
+                슬로건 <span style={{ fontWeight: 400, color: '#9CA3AF' }}>(선택)</span>
+              </label>
+              <input
+                type="text"
+                value={settingsValues.organizationSlogun || ''}
+                onChange={(e) => setSettingsValue('organizationSlogun', e.target.value, { shouldValidate: true })}
+                className="w-full px-4 py-3 rounded-xl border outline-none"
+                style={{ borderColor: settingsErrors.organizationSlogun ? '#EF4444' : '#E5E7EB', background: '#F9F9F9', fontSize: 15 }}
+                placeholder="조직의 슬로건을 입력하세요"
+              />
+              {settingsErrors.organizationSlogun && <p className="mt-1" style={{ fontSize: 12, color: '#EF4444' }}>{settingsErrors.organizationSlogun.message}</p>}
+            </div>
+
+            <div>
               <label className="block mb-1.5" style={{ fontSize: 13, color: '#555', fontWeight: 600 }}>연락처 전화</label>
               <input
                 type="text"
@@ -439,6 +457,13 @@ export default function AdminSettingsPage() {
                         : `상대 등급: 상위 ${grade.percentileMin ?? 0}% ~ ${grade.percentileMax ?? 100}%`
                       }
                     </p>
+                    <p>
+                      {grade.benefit && (
+                        <span style={{ fontSize: 12, color: '#6B7280' }}>
+                          혜택: {grade.benefit}
+                        </span>
+                      )}
+                    </p>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -512,14 +537,21 @@ export default function AdminSettingsPage() {
 
               {/* 상대 등급 퍼센트 입력 */}
               {gradeValues.type === 'PERCENTILE' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block mb-1" style={{ fontSize: 12, color: '#6B7280' }}>최소 % (상위)</label>
-                    <input type="number" min={0} max={100} value={gradeValues.percentileMin ?? ''} onChange={(e) => setGradeValue('percentileMin', e.target.value ? Number(e.target.value) : null, { shouldValidate: true })} placeholder="0" className="w-full px-4 py-3 rounded-xl border outline-none" style={{ borderColor: '#E5E7EB', background: '#F9F9F9', fontSize: 15 }} />
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block mb-1" style={{ fontSize: 12, color: '#6B7280' }}>최소 % (상위)</label>
+                      <input type="number" min={0} max={100} value={gradeValues.percentileMin ?? ''} onChange={(e) => setGradeValue('percentileMin', e.target.value ? Number(e.target.value) : null, { shouldValidate: true })} placeholder="0" className="w-full px-4 py-3 rounded-xl border outline-none" style={{ borderColor: '#E5E7EB', background: '#F9F9F9', fontSize: 15 }} />
+                    </div>
+                    <div>
+                      <label className="block mb-1" style={{ fontSize: 12, color: '#6B7280' }}>최대 % (상위)</label>
+                      <input type="number" min={0} max={100} value={gradeValues.percentileMax ?? ''} onChange={(e) => setGradeValue('percentileMax', e.target.value ? Number(e.target.value) : null, { shouldValidate: true })} placeholder="100" className="w-full px-4 py-3 rounded-xl border outline-none" style={{ borderColor: '#E5E7EB', background: '#F9F9F9', fontSize: 15 }} />
+                    </div>
                   </div>
                   <div>
-                    <label className="block mb-1" style={{ fontSize: 12, color: '#6B7280' }}>최대 % (상위)</label>
-                    <input type="number" min={0} max={100} value={gradeValues.percentileMax ?? ''} onChange={(e) => setGradeValue('percentileMax', e.target.value ? Number(e.target.value) : null, { shouldValidate: true })} placeholder="100" className="w-full px-4 py-3 rounded-xl border outline-none" style={{ borderColor: '#E5E7EB', background: '#F9F9F9', fontSize: 15 }} />
+                    <label className="block mb-1" style={{ fontSize: 12, color: '#6B7280' }}>상대 등급 최소 요구 포인트 (절대 등급 최대 상한선)</label>
+                    <input type="number" value={gradeValues.minPoints ?? 0} onChange={(e) => setGradeValue('minPoints', Number(e.target.value), { shouldValidate: true })} placeholder="기본 최소 점수" className="w-full px-4 py-3 rounded-xl border outline-none" style={{ borderColor: '#E5E7EB', background: '#F9F9F9', fontSize: 15 }} />
+                    <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>💡 상대 평가를 받기 위한 최소 점수 제한입니다. (절대 등급의 상한선을 넘도록 설정해주세요)</p>
                   </div>
                 </div>
               )}

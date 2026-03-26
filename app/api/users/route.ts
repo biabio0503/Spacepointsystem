@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
          points: u.points,
          isAdmin: u.isAdmin,
          joinedAt: u.joinedAt,
+         membershipFeeStatus: u.membershipFeeStatus,
          _count: u._count,
       }));
 

@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { useStore } from '@/store/useStore';
+import { Skeleton } from '@/app/_components/ui/skeleton';
 
 export default function LoadingPage() {
   const router = useRouter();
   const { currentUser, settings, isLoading, finishLoading } = useStore();
 
   const logoUrl = settings?.logoMain || '/logo.png';
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
 
   useEffect(() => {
     // settings가 로드될 때까지 기다림
@@ -81,11 +83,17 @@ export default function LoadingPage() {
             animate={{ y: [-4, 4, -4] }}
             transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
           >
-            <img
-              src={logoUrl}
-              alt="ST Welafare logo"
-              style={{ width: 110, height: 110, borderRadius: '50%' }}
-            />
+            <div style={{ position: 'relative', width: 110, height: 110 }}>
+              {!isImageLoaded && (
+                <Skeleton className="absolute inset-0 rounded-full" />
+              )}
+              <img
+                src={logoUrl}
+                alt="ST Welafare logo"
+                style={{ width: 110, height: 110, borderRadius: '50%', opacity: isImageLoaded ? 1 : 0, transition: 'opacity 0.3s ease-in-out' }}
+                onLoad={() => setIsImageLoaded(true)}
+              />
+            </div>
           </motion.div>
 
           {/* Orbit sparkles */}
@@ -111,7 +119,7 @@ export default function LoadingPage() {
           className="text-center"
         >
           <h1 className="text-white" style={{ fontSize: 32, fontWeight: 900, letterSpacing: '2px' }}>
-            {settings?.organizationName || '기본 이름'}
+          
           </h1>
           <p className="text-white/70 mt-1" style={{ fontSize: 13 }}>
             서울과학기술대학교 학생복지위원회

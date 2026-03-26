@@ -69,6 +69,7 @@ export interface Rental {
 export interface Settings {
    id: string;
    organizationName: string;
+   organizationSlogun: string | null;
    logoMain: string | null;
    instagram: string | null;
    primaryColor: string;
@@ -555,6 +556,11 @@ export const useStore = create<StoreState>((set, get) => ({
          const sortedConfigs = [...gradeConfigs].sort((a, b) => b.orderIndex - a.orderIndex);
 
          for (const config of sortedConfigs) {
+            // Check absolute min points for relative grades (e.g. must exceed threshold to get relative grade)
+            if (config.minPoints > 0 && points < config.minPoints) {
+               continue;
+            }
+
             const meetsMin = config.percentileMin === null || percentile >= config.percentileMin;
             const meetsMax = config.percentileMax === null || percentile < config.percentileMax;
 
