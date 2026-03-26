@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { useStore } from '@/store/useStore';
+import { Skeleton } from '@/app/_components/ui/skeleton';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginFormSchema, type LoginFormInput } from '@/lib/validations';
@@ -34,6 +35,7 @@ export default function LoginPage() {
     return '';
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [showStudentIdInput, setShowStudentIdInput] = useState(false);
   const {
     register,
@@ -125,15 +127,24 @@ export default function LoginPage() {
             animate={{ y: [-3, 3, -3] }}
             transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
           >
+            {!isImageLoaded && (
+              <Skeleton className="w-24 h-24 rounded-full bg-white/20" />
+            )}
             <img
               src={logoUrl}
               alt="SPACE logo"
-              style={{ width: 96, height: 96, borderRadius: '50%' }}
+              style={{
+                width: 96,
+                height: 96,
+                borderRadius: '50%',
+                display: isImageLoaded ? 'block' : 'none',
+              }}
+              onLoad={() => setIsImageLoaded(true)}
             />
           </motion.div>
           <div className="text-center">
-            <h1 className="text-white" style={{ fontSize: 30, fontWeight: 900, letterSpacing: '3px' }}>SPACE</h1>
-            <p className="text-white/60 mt-1" style={{ fontSize: 12 }}>In your space, with our SPACE</p>
+            <h1 className="text-white" style={{ fontSize: 30, fontWeight: 900, letterSpacing: '3px' }}>{settings?.organizationName || ' '}</h1>
+            <p className="text-white/50 mt-0.5" style={{ fontSize: 11 }}>{settings?.organizationSlogun || ' '}</p>
             <p className="text-white/50 mt-0.5" style={{ fontSize: 11 }}>서울과학기술대학교 학생복지위원회</p>
           </div>
         </motion.div>
@@ -147,7 +158,7 @@ export default function LoginPage() {
           transition={{ delay: 0.2 }}
         >
           <p className="text-gray-600 mb-6 text-center" style={{ fontSize: 14 }}>
-            로그인하고 우주를 탐험해보세요 🚀
+            로그인하고 마일리지를 적립해보세요 
           </p>
 
           {!showStudentIdInput ? (

@@ -13,6 +13,7 @@ export async function GET() {
          settings = await prisma.settings.create({
             data: {
                organizationName: '학생복지위원회',
+               organizationSlogun: null,
                primaryColor: '#1B2A5C',
                secondaryColor: '#7DC443',
                contactPhone: '010-0000-0000',
@@ -52,7 +53,7 @@ export async function PATCH(request: NextRequest) {
       }
 
       const body = await request.json();
-      const { organizationName, logoMain, primaryColor, secondaryColor, contactPhone, contactPerson, instagram } = body;
+      const { organizationName, organizationSlogun, logoMain, primaryColor, secondaryColor, contactPhone, contactPerson, instagram } = body;
 
       // 기존 설정 찾기
       let settings = await prisma.settings.findFirst();
@@ -62,6 +63,7 @@ export async function PATCH(request: NextRequest) {
          settings = await prisma.settings.create({
             data: {
                organizationName: organizationName || '학생복지위원회',
+               organizationSlogun: organizationSlogun || null,
                logoMain: logoMain || null,
                primaryColor: primaryColor || '#1B2A5C',
                secondaryColor: secondaryColor || '#7DC443',
@@ -74,6 +76,7 @@ export async function PATCH(request: NextRequest) {
          // 설정이 있으면 업데이트
          const updateData: Record<string, unknown> = {};
          if (organizationName !== undefined) updateData.organizationName = organizationName;
+         if (organizationSlogun !== undefined) updateData.organizationSlogun = organizationSlogun;
          if (logoMain !== undefined) updateData.logoMain = logoMain;
          if (primaryColor !== undefined) updateData.primaryColor = primaryColor;
          if (secondaryColor !== undefined) updateData.secondaryColor = secondaryColor;

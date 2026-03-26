@@ -3,7 +3,7 @@ import "@/styles/index.css";
 import { StoreInitializer } from "@/store/useStore";
 
 export const metadata: Metadata = {
-   title: "St Welfare Point System",
+   title: "학생복지위원회",
    description: "서울과학기술대학교 학생복지위원회 마일리지 시스템.",
 };
 

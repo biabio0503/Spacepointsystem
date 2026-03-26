@@ -94,8 +94,7 @@ export const adminRentalItemFormSchema = z.object({
 });
 
 export const adminSettingsFormSchema = z.object({
-   organizationName: z.string().trim().min(1, '조직 이름을 입력해주세요.').max(100, '조직 이름은 100자 이내여야 합니다.'),
-   primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, '올바른 색상 코드를 입력해주세요.'),
+   organizationName: z.string().trim().min(1, '조직 이름을 입력해주세요.').max(100, '조직 이름은 100자 이내여야 합니다.'),   organizationSlogun: z.string().trim().max(100, '슬로건은 100자 이내여야 합니다.').optional(),   primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, '올바른 색상 코드를 입력해주세요.'),
    secondaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, '올바른 색상 코드를 입력해주세요.'),
    contactPhone: z.string().trim().max(30, '연락처는 30자 이내여야 합니다.').optional().default(''),
    contactPerson: z.string().trim().max(100, '담당자 정보는 100자 이내여야 합니다.').optional().default(''),

@@ -1,15 +1,16 @@
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
-import { LayoutDashboard, Calendar, Users, LogOut, Package, ClipboardList, Settings } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, LogOut, Package, ClipboardList, Settings, ScanLine } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 
 const navItems = [
-  { path: '/admin', icon: LayoutDashboard, label: '홈' },
-  { path: '/admin/events', icon: Calendar, label: '사업관리' },
-  { path: '/admin/rental-items', icon: Package, label: '대여품목' },
-  { path: '/admin/rentals', icon: ClipboardList, label: '대여현황' },
-  { path: '/admin/members', icon: Users, label: '가입자' },
+  { path: '/admin', icon: LayoutDashboard, label: '대시보드' },
+  { path: '/admin/events', icon: Calendar, label: '이벤트' },
+  { path: '/admin/qr', icon: ScanLine, label: 'QR 스캔' },
+  { path: '/admin/rental-items', icon: Package, label: '물품 대여' },
+  { path: '/admin/rentals', icon: ClipboardList, label: '대여 현황' },
+  { path: '/admin/members', icon: Users, label: '멤버 관리' },
   { path: '/admin/settings', icon: Settings, label: '설정' },
 ];
 
@@ -65,19 +66,14 @@ export default function AdminLayout({ children }: { children?: React.ReactNode }
               <button
                 key={path}
                 onClick={() => router.push(path)}
-                className="flex flex-col items-center justify-center gap-0.5 py-1 px-4 flex-1"
+                className="flex flex-col items-center justify-center py-1 flex-1 h-full"
+                title={label}
               >
                 <Icon
-                  size={22}
+                  size={24}
                   color={isActive ? primaryColor : '#9CA3AF'}
                   strokeWidth={isActive ? 2.5 : 1.8}
                 />
-                <span
-                  className="text-[10px]"
-                  style={{ color: isActive ? primaryColor : '#9CA3AF', fontWeight: isActive ? 600 : 400 }}
-                >
-                  {label}
-                </span>
               </button>
             );
           })}

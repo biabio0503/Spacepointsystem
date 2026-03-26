@@ -29,8 +29,6 @@ export { Alert, AlertTitle, AlertDescription } from './alert';
 // Aspect Ratio
 export { AspectRatio } from './aspect-ratio';
 
-// Avatar
-export { Avatar, AvatarImage, AvatarFallback } from './avatar';
 
 // Badge
 export { Badge, badgeVariants } from './badge';

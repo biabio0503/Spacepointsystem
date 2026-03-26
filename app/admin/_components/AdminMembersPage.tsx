@@ -1,17 +1,60 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion } from 'motion/react';
-import { Search, Plus, Gift, Trash2, Edit2, Shield } from 'lucide-react';
+import { Search, Plus, Gift, Trash2, Edit2, Shield, MoreVertical } from 'lucide-react';
 import { useStore } from '@/store/useStore';
+
+type MembershipStatus = 'paid' | 'not_paid' | 'unknown';
+
+const membershipInfoMap: Record<MembershipStatus, { label: string; bg: string; color: string }> = {
+  paid: { label: '납부', bg: '#ECFDF5', color: '#10B981' },
+  not_paid: { label: '미납', bg: '#FEF2F2', color: '#EF4444' },
+  unknown: { label: '확인필요', bg: '#FFFBEB', color: '#F59E0B' },
+};
+
+const getMembershipStatus = (value: unknown): MembershipStatus => {
+  if (value === 'paid' || value === 'not_paid' || value === 'unknown') return value;
+  return 'unknown';
+};
+
+const formatDate = (joinedAt: string | Date | undefined | null) => {
+  if (!joinedAt) return '-';
+  const date = typeof joinedAt === 'string' ? new Date(joinedAt) : joinedAt;
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '-';
+  return date.toISOString().split('T')[0];
+};
 
 export default function AdminMembersPage() {
   const { users, currentUser, getGrade, getGradeInfo, addPoints, deleteUser, updateUser, refreshUsers, refreshPointHistory } = useStore();
-  const [search, setSearch] = useState('');
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const initialSearch = searchParams.get('search') || '';
+  const [search, setSearch] = useState(initialSearch);
+
+  useEffect(() => {
+    const q = searchParams.get('search');
+    if (q && q !== search) setSearch(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  useEffect(() => {
+    const q = searchParams.get('search');
+    if (q && q !== search) setSearch(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  useEffect(() => {
+    const q = searchParams.get('search');
+    if (q) setSearch(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const [pointAmount, setPointAmount] = useState(10);
+  const [pointType, setPointType] = useState<'add' | 'remove'>('add');
   const [pointReason, setPointReason] = useState('');
   const [sortBy, setSortBy] = useState<'points' | 'name' | 'joined'>('points');
   const [membershipFilter, setMembershipFilter] = useState<'all' | 'paid' | 'not_paid' | 'unknown'>('all');
@@ -29,15 +72,16 @@ export default function AdminMembersPage() {
   }, [refreshUsers, refreshPointHistory]);
 
   // 자기 자신을 제외한 모든 사용자 (관리자 포함)
-  const realUsers = users.filter(u => u.id !== currentUser?.id);
+  const realUsers = users;
 
   const filtered = realUsers.filter(u => {
     const matchesSearch = u.name.includes(search) ||
       u.studentId.includes(search) ||
-      u.department.includes(search);
+      u.department.includes(search) ||
+      getGrade(u.id) === search;
 
     const matchesMembership = membershipFilter === 'all' ||
-      (u as any).membershipFeeStatus === membershipFilter;
+      getMembershipStatus((u as unknown as { membershipFeeStatus?: unknown }).membershipFeeStatus) === membershipFilter;
 
     return matchesSearch && matchesMembership;
   });
@@ -51,9 +95,11 @@ export default function AdminMembersPage() {
 
   const handleAddPoints = () => {
     if (!selectedUser || pointAmount <= 0 || !pointReason.trim()) return;
-    addPoints(selectedUser, pointAmount, pointReason);
+    const finalAmount = pointType === 'add' ? pointAmount : -pointAmount;
+    addPoints(selectedUser, finalAmount, pointReason);
     setSelectedUser(null);
     setPointAmount(10);
+    setPointType('add');
     setPointReason('');
   };
 
@@ -113,7 +159,7 @@ export default function AdminMembersPage() {
       department: user.department,
       phone: user.phone,
       studentId: user.studentId,
-      membershipFeeStatus: (user as any).membershipFeeStatus || 'unknown',
+      membershipFeeStatus: getMembershipStatus((user as unknown as { membershipFeeStatus?: unknown }).membershipFeeStatus),
     });
     setEditingUser(userId);
   };
@@ -123,9 +169,9 @@ export default function AdminMembersPage() {
 
   // 자치회비 통계
   const membershipStats = {
-    paid: realUsers.filter(u => (u as any).membershipFeeStatus === 'paid').length,
-    not_paid: realUsers.filter(u => (u as any).membershipFeeStatus === 'not_paid').length,
-    unknown: realUsers.filter(u => (u as any).membershipFeeStatus === 'unknown').length,
+    paid: realUsers.filter(u => getMembershipStatus((u as unknown as { membershipFeeStatus?: unknown }).membershipFeeStatus) === 'paid').length,
+    not_paid: realUsers.filter(u => getMembershipStatus((u as unknown as { membershipFeeStatus?: unknown }).membershipFeeStatus) === 'not_paid').length,
+    unknown: realUsers.filter(u => getMembershipStatus((u as unknown as { membershipFeeStatus?: unknown }).membershipFeeStatus) === 'unknown').length,
   };
 
   return (
@@ -141,22 +187,19 @@ export default function AdminMembersPage() {
       <div className="grid grid-cols-3 gap-2 mb-4">
         <div className="bg-white rounded-xl p-3 shadow-sm border-2" style={{ borderColor: '#ECFDF5' }}>
           <div className="flex items-center gap-2 mb-1">
-            <span style={{ fontSize: 16 }}>✅</span>
             <span style={{ fontSize: 11, color: '#10B981', fontWeight: 600 }}>납부</span>
           </div>
           <p style={{ fontSize: 18, fontWeight: 800, color: '#10B981' }}>{membershipStats.paid}명</p>
         </div>
         <div className="bg-white rounded-xl p-3 shadow-sm border-2" style={{ borderColor: '#FEF2F2' }}>
           <div className="flex items-center gap-2 mb-1">
-            <span style={{ fontSize: 16 }}>❌</span>
             <span style={{ fontSize: 11, color: '#EF4444', fontWeight: 600 }}>미납</span>
           </div>
           <p style={{ fontSize: 18, fontWeight: 800, color: '#EF4444' }}>{membershipStats.not_paid}명</p>
         </div>
         <div className="bg-white rounded-xl p-3 shadow-sm border-2" style={{ borderColor: '#FFFBEB' }}>
           <div className="flex items-center gap-2 mb-1">
-            <span style={{ fontSize: 16 }}>❓</span>
-            <span style={{ fontSize: 11, color: '#F59E0B', fontWeight: 600 }}>모름</span>
+            <span style={{ fontSize: 11, color: '#F59E0B', fontWeight: 600 }}>확인필요</span>
           </div>
           <p style={{ fontSize: 18, fontWeight: 800, color: '#F59E0B' }}>{membershipStats.unknown}명</p>
         </div>
@@ -201,10 +244,10 @@ export default function AdminMembersPage() {
       {/* Membership Fee Filter */}
       <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
         {[
-          { key: 'all', label: '전체', emoji: '👥' },
-          { key: 'paid', label: '납부', emoji: '✅' },
-          { key: 'not_paid', label: '미납', emoji: '❌' },
-          { key: 'unknown', label: '모름', emoji: '❓' },
+          { key: 'all', label: '전체' },
+          { key: 'paid', label: '납부' },
+          { key: 'not_paid', label: '미납' },
+          { key: 'unknown', label: '확인필요' },
         ].map(f => (
           <button
             key={f.key}
@@ -217,122 +260,146 @@ export default function AdminMembersPage() {
               border: `1px solid ${membershipFilter === f.key ? '#7DC443' : '#E5E7EB'}`,
             }}
           >
-            {f.emoji} {f.label}
+              {f.label}
           </button>
         ))}
       </div>
 
-      {/* User list */}
-      <div className="space-y-2">
+      <div className="mb-3 flex items-center justify-between">
+        <p style={{ fontSize: 12, color: '#6B7280' }}>검색 결과 {sorted.length}명</p>
+          <p style={{ fontSize: 12, color: '#9CA3AF' }}>빠른 액션: 권한 변경, 정보 수정, 포인트 지급/차감, 삭제</p>
+      </div>
+
+      {/* User list (Responsive & Menu Toggle) */}
+      <div className="space-y-3 pb-24">
         {sorted.map((user, i) => {
           const grade = getGrade(user.id);
           const info = getGradeInfo(grade);
-          const membershipStatusRaw = (user as any).membershipFeeStatus;
-          const membershipInfoMap = {
-            paid: { emoji: '✅', label: '납부', bg: '#ECFDF5', color: '#10B981' },
-            not_paid: { emoji: '❌', label: '미납', bg: '#FEF2F2', color: '#EF4444' },
-            unknown: { emoji: '❓', label: '모름', bg: '#FFFBEB', color: '#F59E0B' },
-          } as const;
-          const membershipStatus: keyof typeof membershipInfoMap =
-            membershipStatusRaw === 'paid' || membershipStatusRaw === 'not_paid' || membershipStatusRaw === 'unknown'
-              ? membershipStatusRaw
-              : 'unknown';
+          const membershipStatus = getMembershipStatus((user as unknown as { membershipFeeStatus?: unknown }).membershipFeeStatus);
           const membershipInfo = membershipInfoMap[membershipStatus];
+          const isMenuOpen = activeMenu === user.id;
 
           return (
             <motion.div
               key={user.id}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.04 }}
-              className="bg-white rounded-xl p-3.5 shadow-sm"
+              transition={{ delay: Math.min(i * 0.02, 0.2) }}
+              className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 relative"
             >
               <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: info.bg }}
-                  >
-                    <span style={{ fontSize: 18 }}>{info.emoji}</span>
+                <div className="flex flex-col gap-1.5 flex-1 pr-4">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span style={{ fontSize: 16, fontWeight: 800, color: '#1F2937' }}>{user.name}</span>
+                    {user.isAdmin && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ background: '#DBEAFE', color: '#3B82F6' }}>
+                        관리자
+                      </span>
+                    )}
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ background: info.bg, color: info.color }}>
+                      {grade}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ background: membershipInfo.bg, color: membershipInfo.color }}>
+                      {membershipInfo.label}
+                    </span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span style={{ fontSize: 14, fontWeight: 700, color: '#1F2937' }}>{user.name}</span>
-                      {user.isAdmin && (
-                        <span
-                          className="px-1.5 py-0.5 rounded-full text-xs font-bold"
-                          style={{ background: '#DBEAFE', color: '#3B82F6', fontSize: 9 }}
-                        >
-                          관리자
-                        </span>
-                      )}
-                      <span
-                        className="px-1.5 py-0.5 rounded-full text-xs font-bold"
-                        style={{ background: info.bg, color: info.color, fontSize: 9 }}
-                      >
-                        {grade}
-                      </span>
-                      <span
-                        className="px-1.5 py-0.5 rounded-full text-xs font-bold"
-                        style={{ background: membershipInfo.bg, color: membershipInfo.color, fontSize: 9 }}
-                        title="자치회비 납부 여부"
-                      >
-                        {membershipInfo.emoji} {membershipInfo.label}
-                      </span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#1B2A5C' }}>{user.points}점</span>
+                  
+                  <div className="flex flex-col gap-0.5 mt-1">
+                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                      <span className="font-medium text-gray-700">{user.studentId}</span>
+                      <span>·</span>
+                      <span>{user.department}</span>
                     </div>
-                    <p style={{ fontSize: 11, color: '#9CA3AF' }}>
-                      {user.studentId} · {user.department}
-                    </p>
+                    <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                      <span>{user.phone}</span>
+                      <span>·</span>
+                      <span>{formatDate(user.joinedAt)} 가입</span>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                  <button
-                    onClick={() => handleToggleAdmin(user.id)}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center"
-                    style={{ background: user.isAdmin ? '#DBEAFE' : '#FEF3C7' }}
-                    title={user.isAdmin ? '일반 유저로 강등' : '관리자로 승격'}
-                  >
-                    <Shield size={14} color={user.isAdmin ? '#3B82F6' : '#F59E0B'} />
-                  </button>
-                  <button
-                    onClick={() => openEditModal(user.id)}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center"
-                    style={{ background: '#F0F9FF' }}
-                    title="정보 수정"
-                  >
-                    <Edit2 size={14} color="#3B82F6" />
-                  </button>
-                  <button
-                    onClick={() => setSelectedUser(user.id)}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center"
-                    style={{ background: '#EEF1FC' }}
-                    title="포인트 지급"
-                  >
-                    <Plus size={14} color="#1B2A5C" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteUser(user.id)}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center"
-                    style={{ background: '#FEE2E2' }}
-                    title="사용자 삭제"
-                  >
-                    <Trash2 size={14} color="#EF4444" />
-                  </button>
+
+                <div className="flex flex-col items-end justify-between h-full gap-2">
+                  <div className="relative">
+                    <button
+                      onClick={() => setActiveMenu(isMenuOpen ? null : user.id)}
+                      className="p-1.5 -mr-1.5 rounded-lg text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-colors"
+                    >
+                      <MoreVertical size={20} />
+                    </button>
+                    
+                    {/* 우측 팝업 메뉴 (Toggle Menu) */}
+                    {isMenuOpen && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-[40]" 
+                          onClick={() => setActiveMenu(null)}
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95, transformOrigin: 'top right' }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="absolute right-0 top-10 mt-1 w-36 bg-white rounded-xl shadow-lg border border-gray-100 z-[50] py-1.5"
+                        >
+                          <button
+                            onClick={() => { setActiveMenu(null); handleToggleAdmin(user.id); }}
+                            className="w-full px-4 py-2.5 text-left text-sm font-medium flex items-center gap-2 hover:bg-gray-50 text-gray-700"
+                          >
+                            <Shield size={15} className={user.isAdmin ? "text-blue-500" : "text-amber-500"} />
+                            {user.isAdmin ? '일반 권한' : '관리자 권한'}
+                          </button>
+                          <button
+                            onClick={() => { setActiveMenu(null); openEditModal(user.id); }}
+                            className="w-full px-4 py-2.5 text-left text-sm font-medium flex items-center gap-2 hover:bg-gray-50 text-gray-700"
+                          >
+                            <Edit2 size={15} className="text-blue-500" />
+                            정보 수정
+                          </button>
+                          <button
+                            onClick={() => {
+                              setActiveMenu(null);
+                              setSelectedUser(user.id);
+                              setPointType('add');
+                            }}
+                            className="w-full px-4 py-2.5 text-left text-sm font-medium flex items-center gap-2 hover:bg-gray-50 text-gray-700"
+                          >
+                            <Plus size={15} className="text-indigo-600" />
+                            포인트 지급
+                          </button>
+                          <button
+                            onClick={() => {
+                              setActiveMenu(null);
+                              setSelectedUser(user.id);
+                              setPointType('remove');
+                            }}
+                            className="w-full px-4 py-2.5 text-left text-sm font-medium flex items-center gap-2 hover:bg-gray-50 text-gray-700"
+                          >
+                            <Trash2 size={15} className="text-red-500" />
+                            포인트 차감
+                          </button>
+                          <div className="h-px bg-gray-100 my-1"></div>
+                          <button
+                            onClick={() => { setActiveMenu(null); handleDeleteUser(user.id); }}
+                            className="w-full px-4 py-2.5 text-left text-sm font-medium flex items-center gap-2 hover:bg-red-50 text-red-600"
+                          >
+                            <Trash2 size={15} />
+                            사용자 삭제
+                          </button>
+                        </motion.div>
+                      </>
+                    )}
+                  </div>
+                  
+                  <div className="bg-indigo-50/50 px-2.5 py-1 rounded-lg">
+                    <span style={{ fontSize: 14, fontWeight: 800, color: '#1B2A5C' }}>{user.points}점</span>
+                  </div>
                 </div>
-              </div>
-              <div className="mt-2 flex items-center gap-2">
-                <span style={{ fontSize: 10, color: '#D1D5DB' }}>📱 {user.phone}</span>
-                <span style={{ fontSize: 10, color: '#D1D5DB' }}>📅 {typeof user.joinedAt === 'string' ? user.joinedAt.split('T')[0] : new Date(user.joinedAt).toISOString().split('T')[0]}</span>
               </div>
             </motion.div>
           );
         })}
-
+        
         {sorted.length === 0 && (
-          <div className="text-center py-12 bg-white rounded-2xl shadow-sm">
-            <p style={{ fontSize: 32 }}>👥</p>
-            <p className="mt-2" style={{ fontSize: 14, color: '#9CA3AF' }}>검색 결과가 없어요</p>
+          <div className="text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-100">
+            <p style={{ fontSize: 14, color: '#9CA3AF' }}>검색 결과가 없어요</p>
           </div>
         )}
       </div>
@@ -360,7 +427,9 @@ export default function AdminMembersPage() {
                 <Gift size={24} color="#1B2A5C" />
               </div>
               <div>
-                <h3 style={{ fontSize: 16, fontWeight: 800, color: '#1F2937' }}>포인트 수동 지급</h3>
+                <h3 style={{ fontSize: 16, fontWeight: 800, color: '#1F2937' }}>
+                  {pointType === 'add' ? '포인트 수동 지급' : '포인트 수동 차감'}
+                </h3>
                 <p style={{ fontSize: 13, color: '#6B7280' }}>{selectedUserData.name} · {selectedUserData.points}점</p>
               </div>
             </div>
@@ -400,13 +469,13 @@ export default function AdminMembersPage() {
 
             <div className="mb-5">
               <label className="block mb-1.5" style={{ fontSize: 13, color: '#555', fontWeight: 600 }}>
-                지급 사유
+                {pointType === 'add' ? '지급 사유' : '차감 사유'}
               </label>
               <input
                 type="text"
                 value={pointReason}
                 onChange={e => setPointReason(e.target.value)}
-                placeholder="ex) S'TED 참여"
+                placeholder={pointType === 'add' ? "ex) S'TED 참여" : 'ex) 관리자 직접 차감'}
                 className="w-full px-4 py-3 rounded-xl border outline-none"
                 style={{ borderColor: '#E5E7EB', background: '#F9F9F9', fontSize: 15 }}
               />
@@ -426,13 +495,13 @@ export default function AdminMembersPage() {
                 className="flex-1 py-3 rounded-xl text-white"
                 style={{
                   background: pointReason.trim() && pointAmount > 0
-                    ? 'linear-gradient(135deg, #1B2A5C, #2E4A9A)'
+                    ? (pointType === 'add' ? 'linear-gradient(135deg, #1B2A5C, #2E4A9A)' : '#EF4444')
                     : '#E5E7EB',
                   fontWeight: 700,
                   color: pointReason.trim() && pointAmount > 0 ? 'white' : '#9CA3AF',
                 }}
               >
-                지급하기
+                {pointType === 'add' ? '지급하기' : '차감하기'}
               </button>
             </div>
           </motion.div>
@@ -541,7 +610,7 @@ export default function AdminMembersPage() {
                       fontWeight: editForm.membershipFeeStatus === 'paid' ? 700 : 500,
                     }}
                   >
-                    ✅ 납부
+                    납부
                   </button>
                   <button
                     type="button"
@@ -555,7 +624,7 @@ export default function AdminMembersPage() {
                       fontWeight: editForm.membershipFeeStatus === 'not_paid' ? 700 : 500,
                     }}
                   >
-                    ❌ 미납
+                    미납
                   </button>
                   <button
                     type="button"
@@ -569,7 +638,7 @@ export default function AdminMembersPage() {
                       fontWeight: editForm.membershipFeeStatus === 'unknown' ? 700 : 500,
                     }}
                   >
-                    ❓ 모름
+                    확인필요
                   </button>
                 </div>
               </div>
