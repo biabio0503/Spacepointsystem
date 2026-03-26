@@ -1,10 +1,17 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "@/styles/index.css";
 import { StoreInitializer } from "@/store/useStore";
 
 export const metadata: Metadata = {
    title: "학생복지위원회",
    description: "서울과학기술대학교 학생복지위원회 마일리지 시스템.",
+};
+
+export const viewport: Viewport = {
+   width: "device-width",
+   initialScale: 1,
+   maximumScale: 1,
+   userScalable: false,
 };
 
 export default function RootLayout({
