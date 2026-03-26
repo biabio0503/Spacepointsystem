@@ -114,7 +114,7 @@ export default function AdminQRScannerPage() {
             <Scanner
               onScan={handleScan}
               onError={(e) => console.log('QR Error:', e)}
-              components={{ audio: false, finder: true }}
+              components={{ finder: true }}
               styles={{
                 container: { width: '100%', height: '100%' },
               }}

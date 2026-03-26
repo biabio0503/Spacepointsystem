@@ -52,7 +52,14 @@
     @apply border-border;
   }
 
+  html {
+    overscroll-behavior: none;
+  }
+
   body {
     @apply bg-background text-foreground;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+    -webkit-text-size-adjust: none;
   }
 }

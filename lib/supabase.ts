@@ -23,7 +23,7 @@ export { initSupabase };
 // 기존 코드 호환성을 위한 getter
 export const supabase = new Proxy({} as any, {
   get(target, prop) {
-    const client = initSupabase();
+    const client = initSupabase() as any;
     return typeof client[prop] === 'function' ? client[prop].bind(client) : client[prop];
   },
 }) as ReturnType<typeof createClient>;
