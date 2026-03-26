@@ -1,204 +1,71 @@
-# SPACE Point System
+# 🌟 Welfare Point System
 
-This is a code bundle for Buddy Point System. The original project is available at https://www.figma.com/design/pyYKJa93e6sHizoDlNTT7Z/Buddy-Point-System.
+안녕하세요! 서울과학기술대학교 정보통신대학 컴퓨터공학과 24학번 이재호입니다. 
 
-## Features
+**Welfare Point System**은 동아리 및 학생회의 포인트 관리, 이벤트 출석(QR), 물품 대여 등을 보다 효율적이고 체계적으로 운영하기 위해 개발하고 구축한 종합 관리 시스템입니다. 
 
-- 🔐 **Authentication**: Student ID login and Kakao OAuth login
-- 📊 **Point Management**: Track and manage student points
-- 📅 **Event System**: Create and manage campus events with image uploads
-- 🎁 **Rental System**: Manage equipment rental
-- 👥 **Admin Panel**: Comprehensive admin dashboard
-- 📱 **Responsive Design**: Optimized for mobile and desktop
-- 📷 **Image Upload**: Supabase Storage integration for event and item images
-- 🗄️ **Database**: PostgreSQL with Prisma ORM
-- 🎨 **UI**: Tailwind CSS with Framer Motion animations
+기존의 번거롭던 수기/엑셀 관리를 넘어, 모바일과 PC 모두에서 편리하게 사용할 수 있도록 최적화했습니다.
 
-## Tech Stack
+## 👨‍💻 Developer
+- **Developed by:** jaehoya
+- **GitHub Profile:** [https://github.com/jaehoya](https://github.com/jaehoya)
 
-- **Framework**: Next.js 15 (App Router)
-- **Language**: TypeScript
-- **Database**: PostgreSQL (Supabase)
-- **ORM**: Prisma
-- **Authentication**: Supabase Auth + Kakao OAuth
-- **Storage**: Supabase Storage
-- **Styling**: Tailwind CSS
-- **Animation**: Framer Motion
-- **UI Components**: Radix UI + shadcn/ui
+---
 
-## Quick Start
+## ✨ 주요 기능 (Key Features)
+
+시스템을 이용하는 사용자와 관리자 모두에게 필요한 핵심 기능들을 제공합니다:
+
+- **🔐 인증 및 로그인:** 학번 인증 및 카카오 소셜 로그인(Kakao OAuth)을 통한 간편 접속
+- **📊 포인트 및 등급 관리:** 개인별 포인트 적립/사용 내역 추적 및 등급화 시스템
+- **📅 이벤트 및 QR 출석 체계:** 이벤트 생성 및 QR 코드 스캐너를 활용한 현장 출석/이벤트 참여
+- **🎁 물품 대여 시스템:** 단체 공용 물품(장비 등) 대여 가능 여부 확인 및 반납 관리 (사진 업로드 지원)
+- **👥 관리자 대시보드 (Admin):** 회원 권한, 이벤트 일정, 대여 항목 및 전반적인 포인트를 한 번에 관리할 수 있는 전용 페이지
+
+---
+
+## 🛠 사용된 기술 스택 (Tech Stack)
+
+안정적인 서비스 운영과 뛰어난 퍼포먼스를 위해 최신 모던 웹 기술들로 개발되었습니다.
+
+- **Framework:** Next.js 15 (App Router 기반)
+- **Language:** TypeScript
+- **Database & Backend:** PostgreSQL, Supabase
+- **ORM:** Prisma
+- **Authentication:** Supabase Auth + 카카오 OAuth 연동
+- **Storage:** Supabase Storage (이미지 및 파일 업로드)
+- **Styling:** Tailwind CSS, Framer Motion (애니메이션)
+- **UI Components:** Radix UI + shadcn/ui
+- **State Management:** Zustand
+
+---
+
+## 🚀 로컬 실행 방법 (Quick Start)
 
 ```bash
-# Install dependencies
+# 1. 패키지 설치
 npm install
 
-# Set up environment variables
+# 2. 환경변수 설정
 cp .env.example .env.local
-# Edit .env.local with your Supabase and Kakao credentials
+# .env.local 파일에 Supabase, Kakao 등의 접속 키값을 입력해주세요.
 
-# Generate Prisma Client
+# 3. Prisma 클라이언트 생성 & DB 스키마 푸시
 npx prisma generate
-
-# Push database schema
 npx prisma db push
 
-# Start development server
+# 4. 로컬 개발 서버 실행
 npm run dev
 ```
 
-## Documentation
+---
 
-- [SETUP_GUIDE.md](SETUP_GUIDE.md) - Complete setup instructions
-- [KAKAO_LOGIN_GUIDE.md](KAKAO_LOGIN_GUIDE.md) - Kakao OAuth configuration
-- [SUPABASE_STORAGE_GUIDE.md](SUPABASE_STORAGE_GUIDE.md) - Image upload setup
-- [API_INTEGRATION_GUIDE.md](API_INTEGRATION_GUIDE.md) - Frontend-Backend integration guide
+## 📞 수정 요청 및 문의 (Contact & Feedback)
 
-## Project Structure
+시스템을 직접 개발하고 유지보수하고 있습니다. 
+사용하시면서 **"이런 기능이 더 있었으면 좋겠어요!"** 하는 아이디어나 **"여기 오류가 발생했어요!"** 하는 문제점이 있다면 언제든지 편하게 연락해주세요.
 
-```
-Spacepointsystem/
-├── app/                    # Next.js App Router
-│   ├── api/               # API routes (backend)
-│   │   ├── auth/         # Authentication endpoints
-│   │   ├── events/       # Event management
-│   │   ├── rentals/      # Rental management
-│   │   ├── users/        # User management
-│   │   └── upload/       # Image upload
-│   ├── admin/            # Admin pages
-│   ├── login/            # Login page
-│   ├── signup/           # Signup page
-│   └── ...               # Other pages
-├── src/
-│   ├── components/       # React components
-│   │   ├── pages/       # Page components
-│   │   └── ui/          # UI components
-│   └── lib/             # Utilities
-│       ├── api.ts       # API client functions
-│       ├── auth.ts      # Authentication service
-│       └── supabase/    # Supabase clients
-├── prisma/
-│   └── schema.prisma    # Database schema
-└── ...
-```
+- **이슈 등록 (버그/기능 요청):** [GitHub Issues](https://github.com/jaehoya/Spacepointsystem/issues) 에 남겨주시면 가장 정확하게 확인이 가능합니다.
+- **이메일:** [devbabho@gmail.com]
 
-## API Routes
-
-### Authentication
-
-- `POST /api/auth/signup` - User registration
-- `POST /api/auth/login` - User login
-- `POST /api/auth/logout` - User logout
-- `GET /api/auth/me` - Get current user
-- `GET /api/auth/kakao/callback` - Kakao OAuth callback
-
-### Events
-
-- `GET /api/events` - List all events
-- `POST /api/events` - Create event
-- `GET /api/events/[id]` - Get event details
-- `PUT /api/events/[id]` - Update event
-- `DELETE /api/events/[id]` - Delete event
-
-### Rental Items
-
-- `GET /api/rental-items` - List all rental items
-- `POST /api/rental-items` - Create rental item
-- `GET /api/rental-items/[id]` - Get item details
-- `PUT /api/rental-items/[id]` - Update item
-- `DELETE /api/rental-items/[id]` - Delete item
-
-### Rentals
-
-- `GET /api/rentals` - List all rentals
-- `POST /api/rentals` - Create rental
-- `GET /api/rentals/[id]` - Get rental details
-- `POST /api/rentals/[id]/return` - Return rental
-
-### Users
-
-- `GET /api/users` - List all users (admin only)
-- `GET /api/users/[id]` - Get user details
-- `PUT /api/users/[id]` - Update user
-- `POST /api/users/[id]/points` - Add points to user
-
-### Upload
-
-- `POST /api/upload/image` - Upload image
-- `DELETE /api/upload/image` - Delete image
-
-## Current Status
-
-### ✅ Completed
-
-- Backend API routes (all endpoints)
-- Database schema and migrations
-- Kakao OAuth integration
-- Image upload API
-- Authentication service
-- LoginPage with API integration
-- SignUpPage with API integration
-
-### ⚠️ In Progress
-
-Most pages are still using `AppContext` (local memory) instead of API calls. See [API_INTEGRATION_GUIDE.md](API_INTEGRATION_GUIDE.md) for migration instructions.
-
-### 📝 To Do
-
-- Migrate all pages from AppContext to API calls
-- Add error handling and loading states
-- Add data caching (React Query or SWR)
-- Add pagination for list endpoints
-- Add search and filter functionality
-
-## Development
-
-```bash
-# Run development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Start production server
-npm start
-
-# Run linting
-npm run lint
-
-# Open Prisma Studio
-npx prisma studio
-```
-
-## Environment Variables
-
-Required environment variables (see `.env.example`):
-
-```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-DATABASE_URL=
-DIRECT_URL=
-
-# Kakao OAuth (optional)
-NEXT_PUBLIC_KAKAO_REST_API_KEY=
-NEXT_PUBLIC_KAKAO_REDIRECT_URI=
-
-# App
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
-
-## Contributing
-
-1. Create a feature branch
-2. Make your changes
-3. Test thoroughly
-4. Submit a pull request
-
-## License
-
-MIT
-
-## Support
-
-For issues and questions, please open an issue on GitHub.
+감사합니다!
