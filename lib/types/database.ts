@@ -11,7 +11,6 @@ export interface User {
   name: string;
   department: string;
   phone: string;
-  referralCode: string | null;
   points: number;
   membershipFeeStatus: MembershipStatus;
   joinedAt: Date | string;

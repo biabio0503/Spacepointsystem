@@ -18,7 +18,6 @@ model User {
   name                String
   department          String
   phone               String
-  referralCode        String?          @map("referral_code")
   points              Int              @default(0)
   membershipFeeStatus MembershipStatus @default(unknown) @map("membership_fee_status")
   joinedAt            DateTime         @default(now()) @map("joined_at")

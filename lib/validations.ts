@@ -7,7 +7,6 @@ export const signUpSchema = z.object({
    department: z.string().min(1, '학과를 입력해주세요').max(100, '학과는 100자 이내로 입력해주세요'),
    phone: z.string().min(10, '올바른 전화번호를 입력해주세요').max(15, '올바른 전화번호를 입력해주세요'),
    password: z.string().min(6, '비밀번호는 최소 6자 이상이어야 합니다').max(100, '비밀번호는 100자 이내로 입력해주세요'),
-   referralCode: z.string().optional(),
    membershipFeeStatus: z.enum(['paid', 'not_paid', 'unknown']).optional(),
 });
 
@@ -44,26 +43,12 @@ export const signUpPasswordSchema = z
       message: '비밀번호가 일치하지 않습니다.',
    });
 
-export const signUpOptionalSchema = z.object({
-   referralCode: z
-      .string()
-      .trim()
-      .regex(/^\d{8}$/, '추천인 학번은 숫자 8자리여야 합니다.')
-      .or(z.literal(''))
-      .optional(),
-});
 
 export const kakaoSignUpSchema = z.object({
    name: z.string().trim().min(1, '이름을 입력해주세요.'),
    studentId: z.string().trim().regex(/^\d{8}$/, '학번 8자리를 입력해주세요.'),
    department: z.string().trim().min(1, '학과를 선택해주세요.'),
    phone: z.string().trim().regex(/^010\d{7,8}$/, '올바른 휴대폰 번호를 입력해주세요. (010으로 시작)'),
-   referralCode: z
-      .string()
-      .trim()
-      .regex(/^\d{8}$/, '추천인 학번은 숫자 8자리여야 합니다.')
-      .or(z.literal(''))
-      .optional(),
 });
 
 export const settingsProfileSchema = z.object({

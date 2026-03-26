@@ -180,6 +180,31 @@ export default function SettingsPage() {
                ))}
             </div>
 
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-1">
+               <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1F2937', marginBottom: 8 }}>앱 정보</h3>
+               <div 
+                  onClick={() => router.push('/developer')}
+                  className="flex justify-between py-3 border-b border-gray-50 cursor-pointer active:scale-[0.98] transition-all"
+               >
+                  <span style={{ fontSize: 14, color: '#374151' }}>개발자 소개</span>
+                  <span style={{ fontSize: 13, color: '#9CA3AF' }}>ver 1.0</span>
+               </div>
+               <div 
+                  onClick={() => router.push('/privacy')}
+                  className="flex justify-between py-3 border-b border-gray-50 cursor-pointer active:scale-[0.98] transition-all"
+               >
+                  <span style={{ fontSize: 14, color: '#374151' }}>개인정보처리방침</span>
+                  <ChevronLeft className="w-4 h-4 text-gray-400 rotate-180" />
+               </div>
+               <div 
+                  onClick={() => router.push('/terms')}
+                  className="flex justify-between py-3 cursor-pointer active:scale-[0.98] transition-all"
+               >
+                  <span style={{ fontSize: 14, color: '#374151' }}>서비스 이용약관</span>
+                  <ChevronLeft className="w-4 h-4 text-gray-400 rotate-180" />
+               </div>
+            </div>
+
             <button
                onClick={() => setShowLogoutConfirm(true)}
                className="w-full bg-white rounded-2xl p-4 shadow-sm flex items-center justify-center gap-2"

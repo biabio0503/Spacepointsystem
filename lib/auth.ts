@@ -6,7 +6,6 @@ export interface User {
    phone: string;
    points: number;
    isAdmin: boolean;
-   referralCode?: string | null;
    joinedAt: Date;
 }
 
@@ -65,7 +64,7 @@ class AuthService {
       department: string;
       phone: string;
       password: string;
-      referralCode?: string;
+
    }): Promise<{ user: User | null; error: string | null }> {
       try {
          const response = await fetch('/api/auth/signup', {
