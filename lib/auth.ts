@@ -64,7 +64,8 @@ class AuthService {
       department: string;
       phone: string;
       password: string;
-
+      referralCode?: string;
+      membershipFeeStatus?: string;
    }): Promise<{ user: User | null; error: string | null }> {
       try {
          const response = await fetch('/api/auth/signup', {

@@ -7,6 +7,7 @@ export const signUpSchema = z.object({
    department: z.string().min(1, '학과를 입력해주세요').max(100, '학과는 100자 이내로 입력해주세요'),
    phone: z.string().min(10, '올바른 전화번호를 입력해주세요').max(15, '올바른 전화번호를 입력해주세요'),
    password: z.string().min(6, '비밀번호는 최소 6자 이상이어야 합니다').max(100, '비밀번호는 100자 이내로 입력해주세요'),
+   referralCode: z.string().optional(),
    membershipFeeStatus: z.enum(['paid', 'not_paid', 'unknown']).optional(),
 });
 
@@ -44,6 +45,10 @@ export const signUpPasswordSchema = z
    });
 
 
+export const signUpOptionalSchema = z.object({
+   referralCode: z.string().trim().optional(),
+});
+
 export const kakaoSignUpSchema = z.object({
    name: z.string().trim().min(1, '이름을 입력해주세요.'),
    studentId: z.string().trim().regex(/^\d{8}$/, '학번 8자리를 입력해주세요.'),
@@ -70,13 +75,6 @@ export const adminEventFormSchema = z.object({
    isActive: z.boolean().default(true),
 });
 
-export const adminRentalItemFormSchema = z.object({
-   name: z.string().trim().min(1, '물품명을 입력해주세요.'),
-   category: z.string().trim().min(1, '카테고리를 입력해주세요.'),
-   emoji: z.string().max(10, '이모지는 10자 이내로 입력해주세요.').optional().or(z.literal('')),
-   totalStock: z.coerce.number().int().min(1, '총 재고는 최소 1개 이상이어야 합니다.'),
-   description: z.string().max(1000, '설명은 1000자 이내로 입력해주세요.').optional().or(z.literal('')),
-});
 
 export const adminSettingsFormSchema = z.object({
    organizationName: z.string().trim().min(1, '조직 이름을 입력해주세요.').max(100, '조직 이름은 100자 이내여야 합니다.'),   organizationSlogun: z.string().trim().max(100, '슬로건은 100자 이내여야 합니다.').optional(),   primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, '올바른 색상 코드를 입력해주세요.'),
@@ -148,26 +146,6 @@ export const updateEventSchema = createEventSchema.partial().extend({
    isActive: z.boolean().optional(),
 });
 
-// 대여 물품 관련 스키마
-export const createRentalItemSchema = z.object({
-   name: z.string().min(1, '물품명을 입력해주세요').max(100, '물품명은 100자 이내로 입력해주세요'),
-   category: z.string().min(1, '카테고리를 입력해주세요').max(50, '카테고리는 50자 이내로 입력해주세요'),
-   totalStock: z.number().int().min(1, '재고는 최소 1개 이상이어야 합니다').or(z.string().transform(Number)),
-   emoji: z.string().max(10, '이모지는 10자 이내로 입력해주세요').optional().nullable(),
-   description: z.string().max(1000, '설명은 1000자 이내로 입력해주세요').optional().nullable(),
-});
-
-export const updateRentalItemSchema = createRentalItemSchema.partial().extend({
-   isActive: z.boolean().optional(),
-});
-
-// 대여 신청 스키마
-export const createRentalSchema = z.object({
-   itemId: z.string().uuid('올바른 물품 ID가 아닙니다'),
-   quantity: z.number().int().min(1, '수량은 최소 1개 이상이어야 합니다').or(z.string().transform(Number)),
-   expectedReturnDate: z.string().min(1, '반납 예정일을 입력해주세요').or(z.date()),
-   notes: z.string().max(500, '비고는 500자 이내로 입력해주세요').optional().nullable(),
-});
 
 // 사용자 정보 수정 스키마
 export const updateUserSchema = z.object({
@@ -188,10 +166,10 @@ export type LoginFormInput = z.infer<typeof loginFormSchema>;
 export type SignUpBasicInfoInput = z.infer<typeof signUpBasicInfoSchema>;
 export type SignUpPasswordInput = z.infer<typeof signUpPasswordSchema>;
 export type SignUpOptionalInput = z.infer<typeof signUpOptionalSchema>;
+
 export type KakaoSignUpInput = z.infer<typeof kakaoSignUpSchema>;
 export type SettingsProfileInput = z.infer<typeof settingsProfileSchema>;
 export type AdminEventFormValues = z.input<typeof adminEventFormSchema>;
 export type AdminEventFormInput = z.output<typeof adminEventFormSchema>;
-export type AdminRentalItemFormInput = z.infer<typeof adminRentalItemFormSchema>;
 export type AdminSettingsFormInput = z.infer<typeof adminSettingsFormSchema>;
 export type AdminGradeConfigFormInput = z.infer<typeof adminGradeConfigFormSchema>;

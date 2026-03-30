@@ -10,19 +10,12 @@ export async function GET() {
          return NextResponse.json({ user: null });
       }
 
-      // 포인트 히스토리와 대여 내역 조회
-      const [pointHistory, rentals] = await Promise.all([
-         prisma.pointHistory.findMany({
-            where: { userId: user.id },
-            orderBy: { date: 'desc' },
-            take: 20,
-         }),
-         prisma.rental.findMany({
-            where: { userId: user.id },
-            orderBy: { rentalDate: 'desc' },
-            include: { item: true },
-         }),
-      ]);
+      // 포인트 히스토리 조회
+      const pointHistory = await prisma.pointHistory.findMany({
+         where: { userId: user.id },
+         orderBy: { date: 'desc' },
+         take: 20,
+      });
 
       return NextResponse.json({
          user: {
@@ -35,7 +28,6 @@ export async function GET() {
             isAdmin: user.isAdmin,
             joinedAt: user.joinedAt,
             pointHistory,
-            rentals,
          },
       });
    } catch (error) {

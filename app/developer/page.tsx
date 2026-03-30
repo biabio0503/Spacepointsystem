@@ -74,7 +74,7 @@ export default async function DeveloperPage() {
                     {/* Description */}
                     <div className="bg-neutral-900/50 border border-neutral-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
                         <p className="text-neutral-100 leading-relaxed text-center text-sm font-medium">
-                            <span className="text-white block mb-2 text-base font-semibold">안녕하세요, 프론트엔드 개발자 이재호입니다. 🙇</span>
+                            <span className="text-white block mb-2 text-base font-semibold">안녕하세요, 프론트엔드 개발자 이재호입니다.</span>
                             <span className="block text-neutral-400 mb-3">서울과학기술대학교 정보통신대학 컴퓨터공학과 24학번</span>
                             <span className="block mb-4">제42대 SPACE 학생복지위원회 마일리지 시스템 제작을 맡게 되었습니다.</span>
                             <span className="block ">부족한 실력이지만 제 노력이 학생복지위원회와 학교에</span>

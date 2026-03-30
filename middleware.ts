@@ -9,7 +9,7 @@ const JWT_SECRET = new TextEncoder().encode(
 const TOKEN_NAME = 'auth-token';
 
 // 보호된 경로 목록
-const protectedRoutes = ['/admin', '/mypage', '/rental', '/settings'];
+const protectedRoutes = ['/admin', '/mypage', '/settings'];
 
 // 관리자 전용 경로
 const adminRoutes = ['/admin'];

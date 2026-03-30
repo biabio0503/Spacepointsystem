@@ -2,7 +2,6 @@
 // Prisma 모델과 호환되는 camelCase 타입
 
 export type MembershipStatus = 'paid' | 'not_paid' | 'unknown';
-export type RentalStatus = 'active' | 'returned';
 export type GradeType = 'ABSOLUTE_POINTS' | 'PERCENTILE';
 
 export interface User {
@@ -47,33 +46,6 @@ export interface PointHistory {
   createdAt: Date | string;
 }
 
-export interface RentalItem {
-  id: string;
-  name: string;
-  category: string;
-  totalStock: number;
-  available: number;
-  imageUrl: string | null;
-  emoji: string | null;
-  description: string | null;
-  isActive: boolean;
-  createdAt: Date | string;
-  updatedAt: Date | string;
-}
-
-export interface Rental {
-  id: string;
-  userId: string;
-  itemId: string;
-  quantity: number;
-  rentalDate: Date | string;
-  returnDate: Date | string | null;
-  expectedReturnDate: Date | string;
-  status: RentalStatus;
-  notes: string | null;
-  createdAt: Date | string;
-  updatedAt: Date | string;
-}
 
 export interface Settings {
   id: string;
@@ -107,15 +79,7 @@ export interface GradeConfig {
 }
 
 // Relation Types
-export interface RentalWithItem extends Rental {
-  item: RentalItem;
-}
-
-export interface RentalWithUser extends Rental {
-  user: Pick<User, 'studentId' | 'name' | 'department' | 'phone'>;
-}
 
 export interface UserWithRelations extends User {
   pointHistory?: PointHistory[];
-  rentals?: RentalWithItem[];
 }
