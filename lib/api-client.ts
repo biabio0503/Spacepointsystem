@@ -69,48 +69,6 @@ export const eventsAPI = {
       }),
 };
 
-// Rental Items API
-export const rentalItemsAPI = {
-   getAll: () => fetchAPI<{ rentalItems: any[] }>('/rental-items'),
-
-   getById: (id: string) => fetchAPI<{ rentalItem: any }>(`/rental-items/${id}`),
-
-   create: (itemData: any) =>
-      fetchAPI<{ rentalItem: any }>('/rental-items', {
-         method: 'POST',
-         body: JSON.stringify(itemData),
-      }),
-
-   update: (id: string, itemData: any) =>
-      fetchAPI<{ rentalItem: any }>(`/rental-items/${id}`, {
-         method: 'PATCH',
-         body: JSON.stringify(itemData),
-      }),
-
-   delete: (id: string) =>
-      fetchAPI<{ message: string }>(`/rental-items/${id}`, {
-         method: 'DELETE',
-      }),
-};
-
-// Rentals API
-export const rentalsAPI = {
-   getAll: (isAdmin: boolean = true) => fetchAPI<{ rentals: any[] }>(`/rentals${isAdmin ? '?admin=true' : ''}`),
-
-   getById: (id: string) => fetchAPI<{ rental: any }>(`/rentals/${id}`),
-
-   create: (rentalData: any) =>
-      fetchAPI<{ rental: any }>('/rentals', {
-         method: 'POST',
-         body: JSON.stringify(rentalData),
-      }),
-
-   return: (id: string) =>
-      fetchAPI<{ rental: any }>(`/rentals/${id}/return`, {
-         method: 'POST',
-      }),
-};
-
 // Users API (관리자용)
 export const usersAPI = {
    getAll: () => fetchAPI<{ users: any[] }>('/users'),
@@ -132,6 +90,12 @@ export const usersAPI = {
    delete: (id: string) =>
       fetchAPI<{ message: string }>(`/users/${id}`, {
          method: 'DELETE',
+      }),
+
+   resetPassword: (id: string, newPassword: string) =>
+      fetchAPI<{ message: string }>(`/users/${id}/reset-password`, {
+         method: 'POST',
+         body: JSON.stringify({ newPassword }),
       }),
 };
 
@@ -168,11 +132,23 @@ export const meAPI = {
             date: string;
          }>;
       }>('/me/point-history'),
+
+   changePassword: (currentPassword: string, newPassword: string) =>
+      fetchAPI<{ message: string }>('/me/change-password', {
+         method: 'POST',
+         body: JSON.stringify({ currentPassword, newPassword }),
+      }),
+
+   deleteAccount: (password: string) =>
+      fetchAPI<{ message: string }>('/me/delete-account', {
+         method: 'DELETE',
+         body: JSON.stringify({ password }),
+      }),
 };
 
 // Image Upload API
 export const uploadAPI = {
-   uploadImage: async (file: File, bucket: 'event-images' | 'rental-item-images' = 'event-images') => {
+   uploadImage: async (file: File, bucket: 'event-images' = 'event-images') => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('bucket', bucket);
@@ -191,7 +167,7 @@ export const uploadAPI = {
       return data;
    },
 
-   deleteImage: async (fileName: string, bucket: 'event-images' | 'rental-item-images' = 'event-images') => {
+   deleteImage: async (fileName: string, bucket: 'event-images' = 'event-images') => {
       const response = await fetch(`/api/upload/image?fileName=${fileName}&bucket=${bucket}`, {
          method: 'DELETE',
       });

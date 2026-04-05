@@ -36,6 +36,8 @@ function SignUpPageContent() {
    const [checkingStudentId, setCheckingStudentId] = useState(false);
    const [studentIdAvailable, setStudentIdAvailable] = useState<boolean | null>(null);
    const [serverError, setServerError] = useState('');
+   const [agreedTerms, setAgreedTerms] = useState(false);
+   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
 
    const prefillStudentId = searchParams.get('studentId') || '';
 
@@ -109,6 +111,11 @@ function SignUpPageContent() {
       setServerError('');
 
       if (currentStep === 1) {
+         if (!agreedTerms || !agreedPrivacy) {
+            setServerError('이용약관 및 개인정보처리방침에 모두 동의해주세요.');
+            return;
+         }
+
          const valid = await trigger(['name', 'studentId', 'department', 'phone', 'membershipFeeStatus']);
          if (!valid) return;
 
@@ -506,6 +513,51 @@ function SignUpPageContent() {
                            );
                         })}
                      </div>
+                  </div>
+
+                  <div>
+                     <label className="block mb-2.5" style={{ fontSize: 13, color: '#555', fontWeight: 600 }}>
+                        이용약관 및 개인정보 동의
+                     </label>
+                     <div className="space-y-3 p-4 rounded-xl border border-gray-200 bg-gray-50/50">
+                        <div className="flex items-center justify-between">
+                           <label className="flex items-center gap-3 cursor-pointer">
+                              <input 
+                                 type="checkbox" 
+                                 checked={agreedTerms}
+                                 onChange={(e) => setAgreedTerms(e.target.checked)}
+                                 className="w-5 h-5 rounded-md border-gray-300 text-blue-600 focus:ring-blue-500" 
+                              />
+                              <span className="text-sm font-medium text-gray-700">[필수] 서비스 이용약관 동의</span>
+                           </label>
+                           <button 
+                              type="button" 
+                              onClick={() => window.open('/terms', '_blank')}
+                              className="text-xs text-gray-500 underline"
+                           >
+                              보기
+                           </button>
+                        </div>
+                        <div className="flex items-center justify-between">
+                           <label className="flex items-center gap-3 cursor-pointer">
+                              <input 
+                                 type="checkbox" 
+                                 checked={agreedPrivacy}
+                                 onChange={(e) => setAgreedPrivacy(e.target.checked)}
+                                 className="w-5 h-5 rounded-md border-gray-300 text-blue-600 focus:ring-blue-500" 
+                              />
+                              <span className="text-sm font-medium text-gray-700">[필수] 개인정보처리방침 동의</span>
+                           </label>
+                           <button 
+                              type="button" 
+                              onClick={() => window.open('/privacy', '_blank')}
+                              className="text-xs text-gray-500 underline"
+                           >
+                              보기
+                           </button>
+                        </div>
+                     </div>
+                     {serverError && <p className="mt-2 text-red-600 text-xs font-medium pl-1">{serverError}</p>}
                   </div>
 
                   <button

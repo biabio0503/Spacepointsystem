@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { useEffect } from 'react';
 import { authService } from '@/lib/auth';
-import { eventsAPI, rentalItemsAPI, rentalsAPI, usersAPI, meAPI, pointHistoryAPI, settingsAPI, gradeConfigsAPI } from '@/lib/api-client';
+import { eventsAPI, usersAPI, meAPI, pointHistoryAPI, settingsAPI, gradeConfigsAPI } from '@/lib/api-client';
 
 export type Grade = string; // 동적 등급 이름 지원
 
@@ -42,29 +42,6 @@ export interface PointHistory {
    date: string;
 }
 
-export interface RentalItem {
-   id: string;
-   name: string;
-   category: string;
-   totalStock: number;
-   available: number;
-   imageUrl?: string;
-   emoji?: string;
-   description?: string;
-   isActive: boolean;
-}
-
-export interface Rental {
-   id: string;
-   userId: string;
-   itemId: string;
-   quantity: number;
-   rentalDate: string;
-   returnDate?: string;
-   expectedReturnDate: string;
-   status: 'active' | 'returned' | 'overdue';
-   notes?: string;
-}
 
 export interface Settings {
    id: string;
@@ -129,8 +106,6 @@ interface StoreState {
    users: User[];
    events: Event[];
    pointHistory: PointHistory[];
-   rentalItems: RentalItem[];
-   rentals: Rental[];
    settings: Settings | null;
    gradeConfigs: GradeConfig[];
    isLoading: boolean;
@@ -140,8 +115,6 @@ interface StoreState {
    setUsers: (users: User[]) => void;
    setEvents: (events: Event[]) => void;
    setPointHistory: (history: PointHistory[]) => void;
-   setRentalItems: (items: RentalItem[]) => void;
-   setRentals: (rentals: Rental[]) => void;
    setSettings: (settings: Settings | null) => void;
    setGradeConfigs: (configs: GradeConfig[]) => void;
    setIsLoading: (loading: boolean) => void;
@@ -150,8 +123,6 @@ interface StoreState {
    refreshUsers: () => Promise<void>;
    refreshEvents: () => Promise<void>;
    refreshPointHistory: () => Promise<void>;
-   refreshRentalItems: () => Promise<void>;
-   refreshRentals: () => Promise<void>;
    refreshSettings: () => Promise<void>;
    refreshGradeConfigs: () => Promise<void>;
 
@@ -172,16 +143,6 @@ interface StoreState {
    // Points
    addPoints: (userId: string, points: number, reason: string) => Promise<void>;
 
-   // Rental Items
-   addRentalItem: (item: Omit<RentalItem, 'id'>) => Promise<void>;
-   updateRentalItem: (itemId: string, updates: Partial<RentalItem>) => Promise<void>;
-   deleteRentalItem: (itemId: string) => Promise<void>;
-
-   // Rentals
-   createRental: (rental: Omit<Rental, 'id'>) => Promise<void>;
-   updateRental: (rentalId: string, updates: Partial<Rental>) => Promise<void>;
-   returnRental: (rentalId: string) => Promise<void>;
-
    // Utilities
    getGrade: (userId: string) => Grade;
    getGradeByPoints: (points: number, allUsers: User[]) => Grade;
@@ -196,8 +157,6 @@ export const useStore = create<StoreState>((set, get) => ({
    users: [],
    events: [],
    pointHistory: [],
-   rentalItems: [],
-   rentals: [],
    settings: null,
    gradeConfigs: [],
    isLoading: true,
@@ -207,8 +166,6 @@ export const useStore = create<StoreState>((set, get) => ({
    setUsers: (users) => set({ users }),
    setEvents: (events) => set({ events }),
    setPointHistory: (history) => set({ pointHistory: history }),
-   setRentalItems: (items) => set({ rentalItems: items }),
-   setRentals: (rentals) => set({ rentals }),
    setSettings: (settings) => set({ settings }),
    setGradeConfigs: (configs) => set({ gradeConfigs: configs }),
    setIsLoading: (loading) => set({ isLoading: loading }),
@@ -241,23 +198,6 @@ export const useStore = create<StoreState>((set, get) => ({
       }
    },
 
-   refreshRentalItems: async () => {
-      try {
-         const { rentalItems: itemsData } = await rentalItemsAPI.getAll();
-         set({ rentalItems: itemsData });
-      } catch (error) {
-         console.error('Failed to refresh rental items:', error);
-      }
-   },
-
-   refreshRentals: async () => {
-      try {
-         const { rentals: rentalsData } = await rentalsAPI.getAll();
-         set({ rentals: rentalsData });
-      } catch (error) {
-         console.error('Failed to refresh rentals:', error);
-      }
-   },
 
    refreshSettings: async () => {
       try {
@@ -293,7 +233,6 @@ export const useStore = create<StoreState>((set, get) => ({
       set({
          currentUser: null,
          users: [],
-         rentals: [],
          pointHistory: [],
       });
    },
@@ -425,94 +364,6 @@ export const useStore = create<StoreState>((set, get) => ({
          }
       } catch (error) {
          console.error('Failed to add points:', error);
-         throw error;
-      }
-   },
-
-   // Rental Items
-   addRentalItem: async (item) => {
-      try {
-         const { rentalItem } = await rentalItemsAPI.create(item);
-         set((state) => ({
-            rentalItems: [...state.rentalItems, rentalItem],
-         }));
-      } catch (error) {
-         console.error('Failed to create rental item:', error);
-         throw error;
-      }
-   },
-
-   updateRentalItem: async (itemId, updates) => {
-      try {
-         const { rentalItem } = await rentalItemsAPI.update(itemId, updates);
-         set((state) => ({
-            rentalItems: state.rentalItems.map((item) => (item.id === itemId ? rentalItem : item)),
-         }));
-      } catch (error) {
-         console.error('Failed to update rental item:', error);
-         throw error;
-      }
-   },
-
-   deleteRentalItem: async (itemId) => {
-      try {
-         await rentalItemsAPI.delete(itemId);
-         set((state) => ({
-            rentalItems: state.rentalItems.filter((item) => item.id !== itemId),
-         }));
-      } catch (error) {
-         console.error('Failed to delete rental item:', error);
-         throw error;
-      }
-   },
-
-   // Rentals
-   createRental: async (rental) => {
-      try {
-         const { rental: newRental } = await rentalsAPI.create(rental);
-         set((state) => ({
-            rentals: [...state.rentals, newRental],
-            rentalItems: state.rentalItems.map((item) =>
-               item.id === rental.itemId
-                  ? { ...item, available: item.available - rental.quantity }
-                  : item
-            ),
-         }));
-      } catch (error) {
-         console.error('Failed to create rental:', error);
-         throw error;
-      }
-   },
-
-   updateRental: async (rentalId, updates) => {
-      try {
-         set((state) => ({
-            rentals: state.rentals.map((r) => (r.id === rentalId ? { ...r, ...updates } : r)),
-         }));
-      } catch (error) {
-         console.error('Failed to update rental:', error);
-         throw error;
-      }
-   },
-
-   returnRental: async (rentalId) => {
-      try {
-         const { rental } = await rentalsAPI.return(rentalId);
-         const { rentals } = get();
-         const rentalData = rentals.find((r) => r.id === rentalId);
-
-         set((state) => ({
-            rentals: state.rentals.map((r) => (r.id === rentalId ? rental : r)),
-            rentalItems: rentalData
-               ? state.rentalItems.map((item) =>
-                  item.id === rentalData.itemId
-                     ? { ...item, available: item.available + rentalData.quantity }
-                     : item
-               )
-               : state.rentalItems,
-         }));
-      } catch (error) {
-         console.error('Failed to return rental:', error);
          throw error;
       }
    },
@@ -650,23 +501,19 @@ export const useStore = create<StoreState>((set, get) => ({
          set({ currentUser: user });
 
          // 모든 사용자에게 필요한 데이터 로드
-         const [eventsData, itemsData, settingsData, gradeConfigsData] = await Promise.all([
+         const [eventsData, settingsData, gradeConfigsData] = await Promise.all([
             eventsAPI.getAll(),
-            rentalItemsAPI.getAll(),
             settingsAPI.get(),
             gradeConfigsAPI.getAll(),
          ]);
 
          set({
             events: eventsData.events,
-            rentalItems: itemsData.rentalItems,
             settings: settingsData.settings,
             gradeConfigs: gradeConfigsData.gradeConfigs,
          });
 
          if (user) {
-            const { rentals: rentalsData } = await rentalsAPI.getAll();
-            set({ rentals: rentalsData });
 
             // 관리자만 전체 사용자 목록 및 포인트 내역 로드 (일반 사용자는 /api/me/grade, /api/me/point-history 사용)
             if (user.isAdmin) {
@@ -686,36 +533,8 @@ export const useStore = create<StoreState>((set, get) => ({
    },
 }));
 
-// Setup auth state listener
-if (typeof window !== 'undefined') {
-   authService.onAuthStateChange(async (user) => {
-      useStore.setState({ currentUser: user });
 
-      if (user) {
-         try {
-            const { rentals: rentalsData } = await rentalsAPI.getAll();
-            useStore.setState({ rentals: rentalsData });
 
-            // 관리자만 전체 사용자 목록 및 포인트 내역 로드 (일반 사용자는 /api/me/grade, /api/me/point-history 사용)
-            if (user.isAdmin) {
-               const { users: usersData } = await usersAPI.getAll();
-               useStore.setState({ users: usersData });
-
-               const { pointHistory: historyData } = await pointHistoryAPI.getAll();
-               useStore.setState({ pointHistory: historyData });
-            }
-         } catch (error) {
-            console.error('Failed to reload data after login:', error);
-         }
-      } else {
-         useStore.setState({
-            users: [],
-            rentals: [],
-            pointHistory: [],
-         });
-      }
-   });
-}
 
 // StoreInitializer component for Next.js
 export function StoreInitializer() {

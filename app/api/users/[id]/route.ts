@@ -35,10 +35,6 @@ export async function GET(
                orderBy: { date: 'desc' },
                take: 50,
             },
-            rentals: {
-               orderBy: { rentalDate: 'desc' },
-               include: { item: true },
-            },
          },
       });
 
@@ -61,7 +57,6 @@ export async function GET(
             joinedAt: user.joinedAt,
             membershipFeeStatus: user.membershipFeeStatus,
             pointHistory: user.pointHistory,
-            rentals: user.rentals,
          },
       });
    } catch (error) {

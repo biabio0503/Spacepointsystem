@@ -18,7 +18,6 @@ model User {
   name                String
   department          String
   phone               String
-  referralCode        String?          @map("referral_code")
   points              Int              @default(0)
   membershipFeeStatus MembershipStatus @default(unknown) @map("membership_fee_status")
   joinedAt            DateTime         @default(now()) @map("joined_at")
@@ -29,7 +28,6 @@ model User {
   role                String           @default("user")
 
   pointHistory PointHistory[]
-  rentals      Rental[]
 
   @@map("users")
 }
@@ -74,49 +72,6 @@ model PointHistory {
   @@map("point_history")
 }
 
-// 대여 물품
-model RentalItem {
-  id          String   @id @default(uuid())
-  name        String
-  category    String
-  totalStock  Int      @map("total_stock")
-  available   Int
-  imageUrl    String?  @map("image_url")
-  emoji       String?
-  description String?
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  rentals Rental[]
-
-  @@map("rental_items")
-}
-
-// 대여
-model Rental {
-  id                 String       @id @default(uuid())
-  userId             String       @map("user_id")
-  itemId             String       @map("item_id")
-  quantity           Int
-  rentalDate         DateTime     @default(now()) @map("rental_date")
-  returnDate         DateTime?    @map("return_date")
-  expectedReturnDate DateTime     @map("expected_return_date")
-  status             RentalStatus @default(active)
-  notes              String?
-  createdAt          DateTime     @default(now()) @map("created_at")
-  updatedAt          DateTime     @updatedAt @map("updated_at")
-
-  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  item RentalItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
-
-  @@map("rentals")
-}
-
-enum RentalStatus {
-  active
-  returned
-}
 
 // 설정
 model Settings {

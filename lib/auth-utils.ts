@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import prisma from './prisma';
 
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'your-super-secret-key-change-in-production'
+  process.env.JWT_SECRET ?? (() => { throw new Error('JWT_SECRET environment variable is required'); })()
 );
 
 const TOKEN_NAME = 'auth-token';

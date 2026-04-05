@@ -63,7 +63,6 @@ export async function POST(request: NextRequest) {
             name,
             department,
             phone,
-            referralCode: referralCode || null,
             points: initialPoints,
             membershipFeeStatus: membershipFeeStatus || 'unknown',
          },

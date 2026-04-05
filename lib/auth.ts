@@ -6,7 +6,6 @@ export interface User {
    phone: string;
    points: number;
    isAdmin: boolean;
-   referralCode?: string | null;
    joinedAt: Date;
 }
 
@@ -66,6 +65,7 @@ class AuthService {
       phone: string;
       password: string;
       referralCode?: string;
+      membershipFeeStatus?: string;
    }): Promise<{ user: User | null; error: string | null }> {
       try {
          const response = await fetch('/api/auth/signup', {
@@ -108,13 +108,9 @@ class AuthService {
       }
    }
 
-   // 인증 상태 변경 리스너 (폴링 방식으로 전환)
-   onAuthStateChange(callback: (user: User | null) => void) {
-      // 초기 체크
-      this.getCurrentUser().then(callback);
-
-      // 더 이상 Supabase의 실시간 리스너를 사용하지 않음
-      // 필요시 polling이나 다른 방식으로 구현 가능
+   // 인증 상태 변경 리스너
+   // 초기 로딩은 loadInitialData()가 전담하므로 여기서 즉시 실행하지 않음
+   onAuthStateChange(_callback: (user: User | null) => void) {
       return {
          unsubscribe: () => { },
       };

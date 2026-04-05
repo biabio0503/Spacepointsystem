@@ -31,7 +31,7 @@ function ImageCarousel({
         className={`relative flex items-center justify-center ${className}`}
         style={{ ...style, background: 'linear-gradient(135deg, #1B2A5C, #253671)' }}
       >
-        <span style={{ fontSize: 48 }}>🚀</span>
+        <span style={{ fontSize: 48 }}>📅</span>
       </div>
     );
   }
