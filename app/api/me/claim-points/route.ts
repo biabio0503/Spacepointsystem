@@ -14,11 +14,14 @@ export async function POST(request: NextRequest) {
          );
       }
 
-      const body = await request.json();
-      const { points = 2, reason = '웹 로그인 포인트' } = body;
+      const body = await request.json().catch(() => ({}));
+      const { points = 2 } = body;
 
-      // 포인트는 양수만 허용 (악용 방지)
-      if (points < 0 || points > 10) {
+      // reason은 서버에서 고정 (클라이언트 조작 방지)
+      const reason = '웹 로그인 포인트';
+
+      // 포인트는 양수만 허용 (악용 방지) - 최대 10으로 제한
+      if (typeof points !== 'number' || points < 0 || points > 10) {
          return NextResponse.json(
             { error: '올바르지 않은 포인트 값입니다.' },
             { status: 400 }

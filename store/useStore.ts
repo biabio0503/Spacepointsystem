@@ -533,32 +533,8 @@ export const useStore = create<StoreState>((set, get) => ({
    },
 }));
 
-// Setup auth state listener
-if (typeof window !== 'undefined') {
-   authService.onAuthStateChange(async (user) => {
-      useStore.setState({ currentUser: user });
 
-      if (user) {
-         try {
-            // 관리자만 전체 사용자 목록 및 포인트 내역 로드 (일반 사용자는 /api/me/grade, /api/me/point-history 사용)
-            if (user.isAdmin) {
-               const { users: usersData } = await usersAPI.getAll();
-               useStore.setState({ users: usersData });
 
-               const { pointHistory: historyData } = await pointHistoryAPI.getAll();
-               useStore.setState({ pointHistory: historyData });
-            }
-         } catch (error) {
-            console.error('Failed to reload data after login:', error);
-         }
-      } else {
-         useStore.setState({
-            users: [],
-            pointHistory: [],
-         });
-      }
-   });
-}
 
 // StoreInitializer component for Next.js
 export function StoreInitializer() {

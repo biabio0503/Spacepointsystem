@@ -2,9 +2,8 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const JWT_SECRET = new TextEncoder().encode(
-   process.env.JWT_SECRET || 'your-super-secret-key-change-in-production'
-);
+const JWT_SECRET_VALUE = process.env.JWT_SECRET;
+
 
 const TOKEN_NAME = 'auth-token';
 
@@ -46,6 +45,11 @@ export async function middleware(request: NextRequest) {
    }
 
    try {
+      // JWT_SECRET 미설정 시 안전하게 처리
+      if (!JWT_SECRET_VALUE) {
+         return NextResponse.redirect(new URL('/login', request.url));
+      }
+      const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_VALUE);
       // JWT 검증
       const { payload } = await jwtVerify(token, JWT_SECRET);
 

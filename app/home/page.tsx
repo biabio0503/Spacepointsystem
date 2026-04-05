@@ -3,26 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
-import { Settings, ChevronRight, Instagram, QrCode, Gift, Star, TrendingUp } from 'lucide-react';
-import { useStore } from '@/store/useStore';
+import { Settings, ChevronRight, Instagram, QrCode, Star, TrendingUp } from 'lucide-react';
+import { useStore, GradeConfig } from '@/store/useStore';
 import { GradeBadge, GradeIcon } from '@/app/_components/shared/GradeBadge';
 import { BottomNav } from '@/app/_components/shared/BottomNav';
-import { meAPI, gradeConfigsAPI } from '@/lib/api-client';
-
-interface GradeConfig {
-  id: string;
-  name: string;
-  emoji: string;
-  color: string;
-  bgColor: string;
-  benefit: string;
-  minPoints: number;
-  maxPoints: number | null;
-  percentileMin: number | null;
-  percentileMax: number | null;
-  type: 'ABSOLUTE_POINTS' | 'PERCENTILE';
-  orderIndex: number;
-}
+import { meAPI } from '@/lib/api-client';
 
 interface GradeData {
   grade: string;
@@ -35,11 +20,10 @@ interface GradeData {
 
 export default function HomePage() {
   const router = useRouter();
-  const { currentUser, events, getGradeInfo, addPoints, refreshEvents } = useStore();
+  const { currentUser, events, gradeConfigs, getGradeInfo } = useStore();
   const [gradeData, setGradeData] = useState<GradeData | null>(null);
-  const [gradeConfigs, setGradeConfigs] = useState<GradeConfig[]>([]);
-  const [pointClicked, setPointClicked] = useState(false);
-  const [pointError, setPointError] = useState<string | null>(null);
+  const [gradeDataLoading, setGradeDataLoading] = useState(false);
+
 
   const settings = useStore(state => state.settings);
   // 로그인 여부 확인 후 리다이렉트
@@ -51,27 +35,58 @@ export default function HomePage() {
 
   // 등급 정보 로드
   useEffect(() => {
-    if (currentUser) {
-      meAPI.getGrade()
-        .then(setGradeData)
-        .catch(err => console.error('등급 정보를 불러오는데 실패했습니다:', err));
-    }
+    if (!currentUser) return;
+    const fetchGrade = async () => {
+      setGradeDataLoading(true);
+      try {
+        const data = await meAPI.getGrade();
+        setGradeData(data);
+      } catch (err) {
+        console.error('등급 정보를 불러오는데 실패했습니다:', err);
+      } finally {
+        setGradeDataLoading(false);
+      }
+    };
+    fetchGrade();
   }, [currentUser]);
 
-  // 이벤트 목록 로드
+  // 로그인 여부 확인 후 리다이렉트
   useEffect(() => {
-    refreshEvents();
-  }, [refreshEvents]);
+    if (!currentUser) {
+      router.replace('/login');
+    }
+  }, [currentUser, router]);
 
-  // 등급별 혜택 로드
-  useEffect(() => {
-    gradeConfigsAPI.getAll()
-      .then(data => setGradeConfigs(data.gradeConfigs))
-      .catch(err => console.error('등급 설정을 불러오는데 실패했습니다:', err));
-  }, []);
-
-  if (!currentUser || !gradeData) {
+  if (!currentUser) {
     return null;
+  }
+
+  // gradeData 로딩 중: 스켈레톤
+  if (gradeDataLoading || !gradeData) {
+    return (
+      <div className="min-h-screen pb-24" style={{ background: '#EEF1F8' }}>
+        <div className="px-5 pt-12 pb-20" style={{ background: 'linear-gradient(135deg, #0D1B3E 0%, #1B2A5C 60%, #253671 100%)' }}>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <div className="h-3 w-16 rounded bg-white/20 mb-2" />
+              <div className="h-6 w-28 rounded bg-white/30" />
+            </div>
+          </div>
+          <div className="bg-white/10 rounded-2xl p-5 animate-pulse">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-14 h-14 rounded-full bg-white/20" />
+              <div className="flex-1">
+                <div className="h-4 w-16 rounded bg-white/20 mb-2" />
+                <div className="h-3 w-24 rounded bg-white/10" />
+              </div>
+              <div className="h-8 w-16 rounded bg-white/20" />
+            </div>
+            <div className="h-2 rounded-full bg-white/10" />
+          </div>
+        </div>
+        <BottomNav />
+      </div>
+    );
   }
 
   const gradeInfo = getGradeInfo(gradeData.grade);
@@ -82,19 +97,7 @@ export default function HomePage() {
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 3);
 
-  const handleGetPoints = async () => {
-    if (pointClicked) return;
-    setPointClicked(true);
-    setPointError(null);
-    try {
-      await addPoints(currentUser.id, 2, '웹 로그인 포인트');
-    } catch (error: any) {
-      console.error('Failed to add points:', error);
-      setPointError(error.message || '포인트 지급에 실패했습니다.');
-      setTimeout(() => setPointError(null), 3000);
-    }
-    setTimeout(() => setPointClicked(false), 60000);
-  };
+
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
@@ -210,10 +213,9 @@ export default function HomePage() {
 
       {/* Quick Actions */}
       <div className="px-5 -mt-6 relative z-10">
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           {[
             { icon: QrCode, label: 'QR 적립', color: '#1B2A5C', bg: '#EEF1FC', action: () => router.push('/qr') },
-            { icon: Gift, label: '출석 포인트', color: '#7DC443', bg: '#EFF8E6', action: handleGetPoints },
             { icon: TrendingUp, label: '사업 보기', color: '#4BA3E3', bg: '#EBF4FF', action: () => router.push('/events') },
             { icon: Star, label: '마이페이지', color: '#F5C518', bg: '#FFF8E1', action: () => router.push('/mypage') },
           ].map(({ icon: Icon, label, color, bg, action }) => (
@@ -233,30 +235,6 @@ export default function HomePage() {
             </motion.button>
           ))}
         </div>
-
-        {pointClicked && !pointError && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-3 rounded-xl px-4 py-2.5 flex items-center gap-2"
-            style={{ background: '#EFF8E6' }}
-          >
-            <span style={{ fontSize: 16 }}>🚀</span>
-            <span style={{ fontSize: 13, color: '#7DC443', fontWeight: 600 }}>+2점 적립! 오늘의 로그인 포인트를 받았어요.</span>
-          </motion.div>
-        )}
-
-        {pointError && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-3 rounded-xl px-4 py-2.5 flex items-center gap-2"
-            style={{ background: '#FEE2E2' }}
-          >
-            <span style={{ fontSize: 16 }}>⚠️</span>
-            <span style={{ fontSize: 13, color: '#DC2626', fontWeight: 600 }}>{pointError}</span>
-          </motion.div>
-        )}
       </div>
 
       {/* Upcoming Events */}
@@ -294,7 +272,7 @@ export default function HomePage() {
                   }}
                 >
                   {!displayImage && (
-                    <span style={{ fontSize: 28 }}>🚀</span>
+                    <span style={{ fontSize: 28 }}>📅</span>
                   )}
                 </div>
                 <div className="flex-1 px-3 py-2.5 flex flex-col justify-between">

@@ -4,24 +4,18 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
-import { useStore } from '@/store/useStore';
+import { useStore, GradeConfig } from '@/store/useStore';
 import { GradeBadge, GradeIcon } from '@/app/_components/shared/GradeBadge';
 import { BottomNav } from '@/app/_components/shared/BottomNav';
-import { meAPI, gradeConfigsAPI } from '@/lib/api-client';
+import { meAPI } from '@/lib/api-client';
 
-interface GradeConfig {
+
+interface PointHistory {
   id: string;
-  name: string;
-  emoji: string;
-  color: string;
-  bgColor: string;
-  benefit: string;
-  minPoints: number;
-  maxPoints: number | null;
-  percentileMin: number | null;
-  percentileMax: number | null;
-  type: 'ABSOLUTE_POINTS' | 'PERCENTILE';
-  orderIndex: number;
+  userId: string;
+  points: number;
+  reason: string;
+  date: string;
 }
 
 interface GradeData {
@@ -33,19 +27,11 @@ interface GradeData {
   points: number;
 }
 
-interface PointHistory {
-  id: string;
-  userId: string;
-  points: number;
-  reason: string;
-  date: string;
-}
-
 export default function MyPage() {
   const router = useRouter();
-  const { currentUser } = useStore();
+  const { currentUser, gradeConfigs } = useStore();
   const [gradeData, setGradeData] = useState<GradeData | null>(null);
-  const [gradeConfigs, setGradeConfigs] = useState<GradeConfig[]>([]);
+  const [gradeDataLoading, setGradeDataLoading] = useState(false);
   const [pointHistory, setPointHistory] = useState<PointHistory[]>([]);
 
   useEffect(() => {
@@ -56,25 +42,68 @@ export default function MyPage() {
 
   // 등급 정보 로드
   useEffect(() => {
-    if (currentUser) {
-      meAPI.getGrade()
-        .then(setGradeData)
-        .catch(err => console.error('Failed to load grade:', err));
+    if (!currentUser) return;
 
-      // 포인트 내역 로드
-      meAPI.getPointHistory()
-        .then(data => setPointHistory(data.pointHistory))
-        .catch(err => console.error('Failed to load point history:', err));
+    const loadData = async () => {
+      setGradeDataLoading(true);
+      try {
+        const [gradeResult, historyResult] = await Promise.all([
+          meAPI.getGrade(),
+          meAPI.getPointHistory()
+        ]);
+        setGradeData(gradeResult);
+        setPointHistory(historyResult.pointHistory);
+      } catch (err) {
+        console.error('Failed to load data:', err);
+      } finally {
+        setGradeDataLoading(false);
+      }
+    };
 
-      // 등급 설정 로드
-      gradeConfigsAPI.getAll()
-        .then(data => setGradeConfigs(data.gradeConfigs))
-        .catch(err => console.error('Failed to load grade configs:', err));
-    }
+    loadData();
   }, [currentUser]);
 
-  if (!currentUser || !gradeData) {
+
+
+  if (!currentUser) {
     return null;
+  }
+
+  // gradeData 로딩 중: 스켈레톤
+  if (gradeDataLoading || !gradeData) {
+    return (
+      <div className="min-h-screen pb-24" style={{ background: '#EEF1F8' }}>
+        <div className="px-5 pt-12 pb-24 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0D1B3E 0%, #1B2A5C 100%)' }}>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <button onClick={() => router.push('/home')}>
+                <ChevronLeft size={24} color="white" />
+              </button>
+              <h1 className="text-white" style={{ fontSize: 20, fontWeight: 800 }}>마이페이지</h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 animate-pulse">
+            <div className="ml-3 w-12 h-12 rounded-full bg-white/20" />
+            <div>
+              <div className="h-6 w-24 rounded bg-white/30 mb-2" />
+              <div className="h-3 w-32 rounded bg-white/15" />
+            </div>
+          </div>
+        </div>
+        <div className="px-5 -mt-12 relative z-10">
+          <div className="grid grid-cols-3 gap-3">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-white rounded-2xl p-3 shadow-sm animate-pulse">
+                <div className="h-6 w-6 rounded-full bg-gray-200 mx-auto mb-2" />
+                <div className="h-4 w-12 rounded bg-gray-200 mx-auto mb-1" />
+                <div className="h-3 w-16 rounded bg-gray-100 mx-auto" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <BottomNav />
+      </div>
+    );
   }
 
   // 현재 등급 정보 가져오기

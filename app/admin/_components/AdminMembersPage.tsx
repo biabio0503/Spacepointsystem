@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'motion/react';
-import { Search, Plus, Gift, Trash2, Edit2, Shield, MoreVertical } from 'lucide-react';
+import { Search, Plus, Gift, Trash2, Edit2, Shield, MoreVertical, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { useStore } from '@/store/useStore';
+import { usersAPI } from '@/lib/api-client';
 
 type MembershipStatus = 'paid' | 'not_paid' | 'unknown';
 
@@ -64,6 +65,12 @@ export default function AdminMembersPage() {
     studentId: '',
     membershipFeeStatus: 'unknown' as 'paid' | 'not_paid' | 'unknown',
   });
+  const [resetPasswordUser, setResetPasswordUser] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
+  const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
+  const [resetPasswordSuccess, setResetPasswordSuccess] = useState(false);
 
   useEffect(() => {
     refreshUsers();
@@ -136,6 +143,35 @@ export default function AdminMembersPage() {
     const user = users.find(u => u.id === userId);
     if (!user) return;
     setUserToDelete(userId);
+  };
+
+  const handleResetPassword = (userId: string) => {
+    setResetPasswordUser(userId);
+    setNewPassword('');
+    setResetPasswordError(null);
+    setResetPasswordSuccess(false);
+  };
+
+  const confirmResetPassword = async () => {
+    if (!resetPasswordUser || !newPassword || newPassword.length < 4) {
+      setResetPasswordError('비밀번호는 4자 이상이어야 합니다.');
+      return;
+    }
+    setResetPasswordLoading(true);
+    setResetPasswordError(null);
+    try {
+      await usersAPI.resetPassword(resetPasswordUser, newPassword);
+      setResetPasswordSuccess(true);
+      setTimeout(() => {
+        setResetPasswordUser(null);
+        setResetPasswordSuccess(false);
+        setNewPassword('');
+      }, 1500);
+    } catch (error: any) {
+      setResetPasswordError(error.message || '비밀번호 재설정에 실패했습니다.');
+    } finally {
+      setResetPasswordLoading(false);
+    }
   };
 
   const confirmDeleteUser = async () => {
@@ -373,6 +409,13 @@ export default function AdminMembersPage() {
                           >
                             <Trash2 size={15} className="text-red-500" />
                             포인트 차감
+                          </button>
+                          <button
+                            onClick={() => { setActiveMenu(null); handleResetPassword(user.id); }}
+                            className="w-full px-4 py-2.5 text-left text-sm font-medium flex items-center gap-2 hover:bg-gray-50 text-gray-700"
+                          >
+                            <KeyRound size={15} className="text-purple-500" />
+                            비밀번호 재설정
                           </button>
                           <div className="h-px bg-gray-100 my-1"></div>
                           <button
@@ -721,6 +764,85 @@ export default function AdminMembersPage() {
                 }}
               >
                 삭제하기
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+      {/* Reset password modal */}
+      {resetPasswordUser && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 z-[60] flex items-end justify-center"
+          style={{ background: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setResetPasswordUser(null)}
+        >
+          <motion.div
+            initial={{ y: 100 }}
+            animate={{ y: 0 }}
+            className="bg-white rounded-t-3xl w-full max-w-[430px] p-6"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: '#F3E8FF' }}>
+                <KeyRound size={24} color="#9333EA" />
+              </div>
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 800, color: '#1F2937' }}>비밀번호 재설정</h3>
+                <p style={{ fontSize: 13, color: '#6B7280' }}>{users.find(u => u.id === resetPasswordUser)?.name}님의 비밀번호</p>
+              </div>
+            </div>
+
+            <div className="mb-5">
+              <label style={{ fontSize: 13, color: '#555', fontWeight: 600, display: 'block', marginBottom: 6 }}>
+                새 비밀번호 설정
+              </label>
+              <div className="relative">
+                <input
+                  type={showNewPw ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="새 비밀번호 (4자 이상)"
+                  className="w-full px-4 py-3 rounded-xl border outline-none pr-12"
+                  style={{ borderColor: resetPasswordError ? '#EF4444' : '#E5E7EB', background: '#F9F9F9', fontSize: 15 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPw(!showNewPw)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                >
+                  {showNewPw ? <EyeOff size={18} color="#9CA3AF" /> : <Eye size={18} color="#9CA3AF" />}
+                </button>
+              </div>
+              {resetPasswordError && (
+                <p className="mt-1.5" style={{ fontSize: 12, color: '#EF4444' }}>{resetPasswordError}</p>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setResetPasswordUser(null)}
+                className="flex-1 py-3 rounded-xl border"
+                style={{ borderColor: '#E5E7EB', color: '#6B7280', fontWeight: 600 }}
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmResetPassword}
+                disabled={resetPasswordLoading || !newPassword}
+                className="flex-1 py-3 rounded-xl text-white"
+                style={{
+                  background: resetPasswordSuccess
+                    ? '#10B981'
+                    : newPassword
+                      ? 'linear-gradient(135deg, #9333EA, #7C3AED)'
+                      : '#E5E7EB',
+                  fontWeight: 700,
+                  color: newPassword ? 'white' : '#9CA3AF',
+                }}
+              >
+                {resetPasswordSuccess ? '✅ 재설정 완료!' : resetPasswordLoading ? '처리 중...' : '재설정하기'}
               </button>
             </div>
           </motion.div>

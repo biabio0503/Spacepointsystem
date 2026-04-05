@@ -91,6 +91,12 @@ export const usersAPI = {
       fetchAPI<{ message: string }>(`/users/${id}`, {
          method: 'DELETE',
       }),
+
+   resetPassword: (id: string, newPassword: string) =>
+      fetchAPI<{ message: string }>(`/users/${id}/reset-password`, {
+         method: 'POST',
+         body: JSON.stringify({ newPassword }),
+      }),
 };
 
 // Point History API (관리자용)
@@ -126,6 +132,18 @@ export const meAPI = {
             date: string;
          }>;
       }>('/me/point-history'),
+
+   changePassword: (currentPassword: string, newPassword: string) =>
+      fetchAPI<{ message: string }>('/me/change-password', {
+         method: 'POST',
+         body: JSON.stringify({ currentPassword, newPassword }),
+      }),
+
+   deleteAccount: (password: string) =>
+      fetchAPI<{ message: string }>('/me/delete-account', {
+         method: 'DELETE',
+         body: JSON.stringify({ password }),
+      }),
 };
 
 // Image Upload API

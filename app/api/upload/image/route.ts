@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       }
 
       // 버킷 이름 검증
-      const validBuckets = ['event-images', 'rental-item-images', 'logos'];
+      const validBuckets = ['event-images', 'logos'];
       if (!validBuckets.includes(bucketName)) {
          return NextResponse.json(
             { error: '잘못된 버킷 이름입니다.' },
@@ -114,6 +114,15 @@ export async function DELETE(request: NextRequest) {
       if (!fileName) {
          return NextResponse.json(
             { error: '파일명이 제공되지 않았습니다.' },
+            { status: 400 }
+         );
+      }
+
+      // 버킷 이름 검증 (DELETE도 동일하게 적용)
+      const validBuckets = ['event-images', 'logos'];
+      if (!validBuckets.includes(bucketName)) {
+         return NextResponse.json(
+            { error: '잘못된 버킷 이름입니다.' },
             { status: 400 }
          );
       }
