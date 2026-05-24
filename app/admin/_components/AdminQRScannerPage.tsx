@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
-import { Camera, CheckCircle2, RotateCcw, UserCheck, XCircle } from 'lucide-react';
+import { Camera, CheckCircle2, RotateCcw, XCircle } from 'lucide-react';
 import { Scanner } from '@yudiel/react-qr-scanner';
-import { toast } from 'sonner';
 
 export default function AdminQRScannerPage() {
   const { users, refreshUsers, addPoints, settings } = useStore();
@@ -23,6 +22,15 @@ export default function AdminQRScannerPage() {
     // Ensure all users are loaded so we can find by studentId
     refreshUsers();
   }, [refreshUsers]);
+
+  const sanitizePointAmount = (value: number) => {
+    if (!Number.isFinite(value) || value < 1) return 1;
+    return Math.floor(value);
+  };
+
+  const handlePointAmountChange = (value: string) => {
+    setPointAmount(sanitizePointAmount(Number(value)));
+  };
 
   const handleScan = async (result: any) => {
     if (!result || !result.length) return;
@@ -51,9 +59,11 @@ export default function AdminQRScannerPage() {
       }
 
       // Add points to the mapped userId
-      await addPoints(user.id, Number(pointAmount), pointReason);
+      const safePointAmount = sanitizePointAmount(pointAmount);
+      setPointAmount(safePointAmount);
+      await addPoints(user.id, safePointAmount, pointReason);
       
-      setSuccessMessage(`${user.name} 님에게 ${pointAmount}p 지급 완료!`);
+      setSuccessMessage(`${user.name} 님에게 ${safePointAmount}p 지급 완료!`);
       setErrorMessage(null);
       
       // Pause scanner briefly
@@ -93,16 +103,24 @@ export default function AdminQRScannerPage() {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1">지급/차감 포인트 (마일리지)</label>
+          <label className="block text-xs font-semibold text-gray-500 mb-1">지급 포인트 (마일리지)</label>
           <input
             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium"
             type="number"
+            min={1}
+            step={1}
+            inputMode="numeric"
             value={pointAmount}
-            onChange={(e) => setPointAmount(Number(e.target.value))}
+            onKeyDown={(e) => {
+              if (['-', '+', 'e', 'E', '.'].includes(e.key)) {
+                e.preventDefault();
+              }
+            }}
+            onChange={(e) => handlePointAmountChange(e.target.value)}
             placeholder="포인트 수량"
           />
           <p className="text-[11px] text-gray-400 mt-1.5 ml-1">
-            * 음수 입력시 차감됩니다.
+            * 1 이상의 포인트만 지급할 수 있습니다.
           </p>
         </div>
       </div>
