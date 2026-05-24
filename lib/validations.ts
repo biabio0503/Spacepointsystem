@@ -44,6 +44,19 @@ export const signUpPasswordSchema = z
       message: '비밀번호가 일치하지 않습니다.',
    });
 
+export const forgotPasswordSchema = z
+   .object({
+      studentId: z.string().trim().regex(/^\d{8}$/, '학번은 숫자 8자리여야 합니다.'),
+      name: z.string().trim().min(1, '이름을 입력해주세요.').max(50, '이름은 50자 이내로 입력해주세요.'),
+      phone: z.string().trim().regex(/^010\d{7,8}$/, '올바른 휴대폰 번호를 입력해주세요. (010으로 시작)'),
+      password: z.string().min(6, '비밀번호는 최소 6자 이상이어야 합니다.').max(100, '비밀번호는 100자 이내로 입력해주세요.'),
+      passwordConfirm: z.string().min(1, '비밀번호 확인을 입력해주세요.'),
+   })
+   .refine((value) => value.password === value.passwordConfirm, {
+      path: ['passwordConfirm'],
+      message: '비밀번호가 일치하지 않습니다.',
+   });
+
 
 export const signUpOptionalSchema = z.object({
    referralCode: z.string().trim().optional(),
@@ -166,6 +179,7 @@ export type LoginFormInput = z.infer<typeof loginFormSchema>;
 export type SignUpBasicInfoInput = z.infer<typeof signUpBasicInfoSchema>;
 export type SignUpPasswordInput = z.infer<typeof signUpPasswordSchema>;
 export type SignUpOptionalInput = z.infer<typeof signUpOptionalSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 
 export type KakaoSignUpInput = z.infer<typeof kakaoSignUpSchema>;
 export type SettingsProfileInput = z.infer<typeof settingsProfileSchema>;

@@ -247,6 +247,14 @@ export default function LoginPage() {
                 />
                 {errors.password && <p className="mt-1" style={{ fontSize: 12, color: '#EF4444' }}>{errors.password.message}</p>}
                 {error && <p className="mt-1" style={{ fontSize: 12, color: '#EF4444' }}>{error}</p>}
+                <button
+                  type="button"
+                  onClick={() => router.push('/forgot-password')}
+                  className="mt-2 text-right w-full transition-colors"
+                  style={{ fontSize: 12, color: '#1B2A5C', fontWeight: 600 }}
+                >
+                  비밀번호를 잊으셨나요?
+                </button>
               </div>
               <button
                 type="submit"
