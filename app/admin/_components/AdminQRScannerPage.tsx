@@ -24,7 +24,7 @@ export default function AdminQRScannerPage() {
   }, [refreshUsers]);
 
   const sanitizePointAmount = (value: number) => {
-    if (!Number.isFinite(value) || value < 1) return 1;
+    if (!Number.isFinite(value) || value < 0) return 0;
     return Math.floor(value);
   };
 
@@ -107,7 +107,7 @@ export default function AdminQRScannerPage() {
           <input
             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium"
             type="number"
-            min={1}
+            min={0}
             step={1}
             inputMode="numeric"
             value={pointAmount}
@@ -120,7 +120,7 @@ export default function AdminQRScannerPage() {
             placeholder="포인트 수량"
           />
           <p className="text-[11px] text-gray-400 mt-1.5 ml-1">
-            * 1 이상의 포인트만 지급할 수 있습니다.
+            * 0 이상의 포인트부터 지급할 수 있습니다.
           </p>
         </div>
       </div>
